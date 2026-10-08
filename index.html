@@ -12,7 +12,7 @@
         .container { max-width: 650px; margin: 0 auto; background: #1e293b; padding: 25px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
         h1 { color: #38bdf8; margin-top: 0; font-size: 24px; display: flex; justify-content: space-between; align-items: center; }
         .badge { font-size: 12px; background: #0284c7; padding: 4px 10px; border-radius: 12px; }
-        .card { background: #0f172a; padding: 18px; border-radius: 8px; margin-bottom: 15px; border: 1px: #334155; }
+        .card { background: #0f172a; padding: 18px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #334155; }
         h3 { margin-top: 0; color: #38bdf8; font-size: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px; }
         label { display: block; margin-top: 10px; font-size: 13px; color: #94a3b8; }
         input { width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: white; box-sizing: border-box; font-size: 14px; }
@@ -93,11 +93,14 @@
                 const res = await fetch('/api/health');
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
-                document.getElementById('status').innerText = 'Online';
-                document.getElementById('status.style.color').color = '#34d399';
+                const statusBadge = document.getElementById('status');
+                statusBadge.innerText = 'Online';
+                statusBadge.style.color = '#34d399';
             } catch (err) {
                 document.getElementById('output').innerText = 'Error: ' + err.message;
-                document.getElementById('status').innerText = 'Offline';
+                const statusBadge = document.getElementById('status');
+                statusBadge.innerText = 'Offline';
+                statusBadge.style.color = '#f43f5e';
             }
         }
 
@@ -155,7 +158,6 @@
             try {
                 const messagePayload = `NullNet Transfer: Send ${amount} to ${recipient}`;
                 
-                // Sign using TweetNaCl (Ed25519) if LUN address
                 const secretKeyBytes = bs58.decode(privateKeyStr);
                 const messageBytes = new TextEncoder().encode(messagePayload);
                 const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
