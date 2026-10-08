@@ -179,7 +179,7 @@ app.post('/api/invokeSmartContract', (req, res) => {
       db.prepare(`
         INSERT INTO tokens (mint, name, symbol, total_supply, owner)
         VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(mint) DO UPDATE SET symbol = excluded.symbol, total_supply = excluded.total_supply
+        ON CONFLICT(mint) DO UPDATE SET symbol = excluded.symbol, total_supply = excluded.total_supply, owner = excluded.owner
       `).run(programId, symbol, symbol, supply, signer);
     }
 
