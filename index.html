@@ -366,48 +366,43 @@
         }
 
         async function sendTransaction() {
-            const sender = document.getElementById('txSender').value.trim();
-            const recipient = document.getElementById('txRecipient').value.trim();
-            const amount = parseFloat(document.getElementById('txAmount').value);
-            const privateKeyStr = document.getElementById('txPrivateKey').value.trim();
-            const asset = document.getElementById('transferAssetSelect').value;
+    const sender = document.getElementById('txSender').value.trim();
+    const recipient = document.getElementById('txRecipient').value.trim();
+    const amount = parseFloat(document.getElementById('txAmount').value);
+    const privateKeyStr = document.getElementById('txPrivateKey').value.trim();
+    const asset = document.getElementById('transferAssetSelect').value;
 
-            if (!sender || !recipient || isNaN(amount) || !privateKeyStr) {
-                alert('Please fill out all transaction fields correctly.');
-                return;
-            }
+    if (!sender || !recipient || isNaN(amount) || !privateKeyStr) {
+        alert('Please fill out all transaction fields correctly.');
+        return;
+    }
 
-            try {
-                // Structured JSON payload matching backend signature verification expectation
-                const messagePayload = JSON.stringify({
-                    sender: sender,
-                    recipient: recipient,
-                    amount: amount,
-                    asset: asset
-                });
+    try {
+        // Matches the exact string format expected by chain.js verifyWeb3Signature
+        const parsedAmount = parseFloat(amount);
+        const messagePayload = `NullNet Transfer: Send ${parsedAmount} to ${recipient}`;
 
-                const secretKeyBytes = Base58.decode(privateKeyStr);
-                const messageBytes = new TextEncoder().encode(messagePayload);
-                const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
-                const signature = Base58.encode(signatureBytes);
+        const secretKeyBytes = Base58.decode(privateKeyStr);
+        const messageBytes = new TextEncoder().encode(messagePayload);
+        const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
+        const signature = Base58.encode(signatureBytes);
 
-                const res = await fetch('/api/sendTransaction', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sender, recipient, amount, asset, signature })
-                });
-                const data = await res.json();
-                document.getElementById('output').innerText = JSON.stringify(data, null, 2);
-                
-                if (data.success) {
-                    await refreshBalance();
-                    fetchRecentTransactions();
-                }
-            } catch (err) {
-                document.getElementById('output').innerText = 'Transaction Error: ' + err.message;
-            }
+        const res = await fetch('/api/sendTransaction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sender, recipient, amount, asset, signature })
+        });
+        const data = await res.json();
+        document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+        
+        if (data.success) {
+            await refreshBalance();
+            fetchRecentTransactions();
         }
-
+    } catch (err) {
+        document.getElementById('output').innerText = 'Transaction Error: ' + err.message;
+    }
+}
         async function createSplToken() {
             const programId = document.getElementById('tokenProgramId').value.trim();
             const symbol = document.getElementById('tokenSymbol').value.trim();
