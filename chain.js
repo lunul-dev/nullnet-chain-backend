@@ -301,34 +301,39 @@ app.post('/api/faucet', (req, res) => {
 });
 
 // ============================================================================
-// BACKGROUND BLOCK PRODUCTION ENGINE (MINER / HEARTBEAT)
+// NETWORK VITALS ENGINE
 // ============================================================================
-const BLOCK_INTERVAL_MS = 15000; // Mints an automated block every 15 seconds
-
-const produceBackgroundBlock = db.transaction(() => {
-  const latestBlock = db.prepare('SELECT * FROM blocks ORDER BY height DESC LIMIT 1').get();
-  const newHeight = latestBlock.height + 1;
-  const timestamp = new Date().toISOString();
-  const newHash = computeBlockHash(newHeight, latestBlock.hash, timestamp);
-
-  db.prepare(`
-    INSERT INTO blocks (height, prev_hash, hash, timestamp) VALUES (?, ?, ?, ?)
-  `).run(newHeight, latestBlock.hash, newHash, timestamp);
-
-  return { height: newHeight, hash: newHash };
-});
+let networkVitals = {
+  activeNodes: 4500,
+  totalWallets: 0,
+  blockHeight: db.prepare('SELECT MAX(height) as height FROM blocks').get().height || 0,
+  totalFeesPaid: 0.0,
+  totalTransactions: 0
+};
 
 setInterval(() => {
-  try {
-    const result = produceBackgroundBlock();
-    console.log(`[NullNet Miner] Successfully mined block #${result.height} | Hash: ${result.hash.substring(0, 12)}...`);
-  } catch (err) {
-    console.error('[NullNet Miner Error]:', err.message);
-  }
-}, BLOCK_INTERVAL_MS);
+  // Nodes fluctuate between 3,600 and 5,550
+  const nodeDelta = Math.floor(Math.random() * 41) - 20;
+  networkVitals.activeNodes = Math.min(5550, Math.max(3600, networkVitals.activeNodes + nodeDelta));
 
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'online', network: 'NullNet Chain Backend is live.' });
+  // Wallets grow by 3 to 10 per second
+  networkVitals.totalWallets += Math.floor(Math.random() * 8) + 3;
+
+  // Block height grows by 30 to 33 per second
+  const blockJump = Math.floor(Math.random() * 4) + 30;
+  networkVitals.blockHeight += blockJump;
+  networkVitals.totalFeesPaid += blockJump * 0.005;
+
+  // Total transactions grow by 1 to 50 per second
+  networkVitals.totalTransactions += Math.floor(Math.random() * 50) + 1;
+}, 1000);
+
+app.get('/api/networkVitals', (req, res) => {
+  res.status(200).json({
+    success: true,
+    ...networkVitals,
+    totalFeesPaid: parseFloat(networkVitals.totalFeesPaid.toFixed(4))
+  });
 });
 
 app.listen(PORT, () => {

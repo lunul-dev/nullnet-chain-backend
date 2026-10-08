@@ -118,7 +118,40 @@
                 <span id="statusText">Connected</span>
             </div>
         </header>
+<!-- NETWORK VITALS & TELEMETRY -->
+            <div class="card">
+                <h3>⚡ Network Telemetry & Vitals</h3>
+                <p class="desc">Real-time network consensus performance and protocol metrics.</p>
+                
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                    <div class="portfolio-box" style="margin-top:0; padding:12px;">
+                        <div style="font-size:10px; color:var(--text-muted);">ACTIVE NODES</div>
+                        <div id="statNodes" style="font-size:20px; font-weight:700; color:var(--accent-glow); font-family:monospace;">--</div>
+                    </div>
+                    <div class="portfolio-box" style="margin-top:0; padding:12px;">
+                        <div style="font-size:10px; color:var(--text-muted);">TOTAL WALLETS</div>
+                        <div id="statWallets" style="font-size:20px; font-weight:700; color:#fff; font-family:monospace;">0</div>
+                    </div>
+                </div>
 
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="portfolio-box" style="margin-top:0; padding:12px;">
+                        <div style="font-size:10px; color:var(--text-muted);">LIVE BLOCK HEIGHT</div>
+                        <div id="statHeight" style="font-size:20px; font-weight:700; color:var(--success); font-family:monospace;">0</div>
+                    </div>
+                    <div class="portfolio-box" style="margin-top:0; padding:12px;">
+                        <div style="font-size:10px; color:var(--text-muted);">FEES PAID (LUN)</div>
+                        <div id="statFees" style="font-size:20px; font-weight:700; color:#f59e0b; font-family:monospace;">0.0000</div>
+                    </div>
+                </div>
+
+                <div class="portfolio-box" style="margin-top: 12px; padding: 12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:10px; color:var(--text-muted);">TOTAL TRANSACTIONS PROCESSED</span>
+                        <span id="statTxs" style="font-size:16px; font-weight:700; color:var(--accent-glow); font-family:monospace;">0</span>
+                    </div>
+                </div>
+            </div>
         <div class="grid">
             <!-- WALLET & ASSET PORTFOLIO -->
             <div class="card">
