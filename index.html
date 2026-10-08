@@ -325,9 +325,10 @@
 
         function startAutoRefresh() {
             if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+            // Automatically poll balance, tokens, and transaction logs every 5 seconds
             autoRefreshInterval = setInterval(async () => {
                 if (currentWallet) {
-                    await refreshWalletData(false);
+                    await refreshWalletData(false); // silent refresh
                 }
             }, 5000);
         }
@@ -414,9 +415,7 @@
 
             try {
                 const parsedAmount = parseFloat(amount);
-                // Corrected random salt generation
-                const nonce = Math.random().toString(36).substring(2);
-                const messagePayload = `NullNet Transfer: Send ${parsedAmount} to ${recipient} [${nonce}]`;
+                const messagePayload = `NullNet Transfer: Send ${parsedAmount} to ${recipient}`;
 
                 const secretKeyBytes = Base58.decode(privateKeyStr);
                 const messageBytes = new TextEncoder().encode(messagePayload);
@@ -451,8 +450,7 @@
 
             try {
                 const action = 'deployToken';
-                const nonce = Math.random().toString(36).substring(2);
-                const message = `Invoke ${programId}:${action} Symbol:${symbol} Supply:${supply} [${nonce}]`;
+                const message = `Invoke ${programId}:${action} Symbol:${symbol} Supply:${supply}`;
                 const secretKeyBytes = Base58.decode(currentWallet.privateKey);
                 const messageBytes = new TextEncoder().encode(message);
                 const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
@@ -487,18 +485,11 @@
 
         function updateAssetDropdown() {
             const selectEl = document.getElementById('transferAssetSelect');
-            const currentSelected = selectEl.value; 
-            
             let html = `<option value="LUN">LUN (Native) - Balance: ${nativeBalanceVal.toFixed(2)}</option>`;
             userTokens.forEach(t => {
                 html += `<option value="${t.symbol}">${t.symbol} (SPL) - Balance: ${t.supply.toLocaleString()}</option>`;
             });
             selectEl.innerHTML = html;
-            
-            if ([...selectEl.options].some(opt => opt.value === currentSelected)) {
-                selectEl.value = currentSelected;
-            }
-            
             updateTransferMaxLabel();
         }
 
