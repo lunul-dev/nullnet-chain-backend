@@ -146,7 +146,7 @@
                         
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
                             <span style="font-size:11px; color:var(--text-muted); font-weight:600;">TOKEN HOLDINGS</span>
-                            <button class="secondary" onclick="refreshWalletData()" style="margin-top:0; padding:5px 10px; font-size:11px; width:auto;">Refresh</button>
+                            <button class="secondary" onclick="refreshBalance()" style="margin-top:0; padding:5px 10px; font-size:11px; width:auto;">Refresh</button>
                         </div>
                         <div class="token-list" id="tokenHoldingsList">
                             <div class="token-item">
@@ -291,8 +291,9 @@
                 const data = await res.json();
                 if (data.success) {
                     currentWallet = data.wallet;
-                    await refreshWalletData();
+                    displayWalletInfo(data.wallet, 250.00);
                     document.getElementById('output').innerText = "Wallet generated & funded successfully!";
+                    fetchUserTokens();
                     fetchRecentTransactions();
                 }
             } catch (err) {
@@ -312,22 +313,16 @@
                 const address = 'LUN' + Base58.encode(keypair.publicKey);
                 
                 currentWallet = { address, privateKey: pk };
+                await refreshBalance();
+                await fetchUserTokens();
                 document.getElementById('walletDetailsBox').innerText = `Address: ${address}\nPrivate Key: ${pk}`;
                 document.getElementById('txSender').value = address;
                 document.getElementById('txPrivateKey').value = pk;
-                
-                await refreshWalletData();
                 document.getElementById('output').innerText = "Wallet restored successfully!";
                 fetchRecentTransactions();
             } catch (err) {
                 alert('Failed to restore wallet: ' + err.message);
             }
-        }
-
-        async function refreshWalletData() {
-            if (!currentWallet) return;
-            await refreshBalance();
-            await fetchUserTokens();
         }
 
         async function refreshBalance() {
@@ -380,7 +375,7 @@
                 });
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
-                await refreshWalletData();
+                await refreshBalance();
                 fetchRecentTransactions();
             } catch (err) {
                 alert('Faucet error: ' + err.message);
@@ -417,7 +412,7 @@
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
                 
                 if (data.success) {
-                    await refreshWalletData();
+                    await refreshBalance();
                     fetchRecentTransactions();
                 }
             } catch (err) {
@@ -451,7 +446,11 @@
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
 
-                await refreshWalletData();
+                if (!userTokens.some(t => t.symbol === symbol)) {
+                    userTokens.push({ symbol, supply, programId });
+                }
+                updateTokenPortfolio();
+                updateAssetDropdown();
                 fetchRecentTransactions();
             } catch (err) {
                 document.getElementById('output').innerText = 'Token Deploy Error: ' + err.message;
@@ -460,14 +459,10 @@
 
         function updateTokenPortfolio() {
             const listEl = document.getElementById('tokenHoldingsList');
-            let html = '';
-            if (userTokens.length === 0) {
-                html = '<div class="token-item"><span class="token-symbol">No custom tokens found</span><span>0.00</span></div>';
-            } else {
-                userTokens.forEach(t => {
-                    html += `<div class="token-item"><span class="token-symbol">${t.symbol}</span><span>${t.supply.toLocaleString()}</span></div>`;
-                });
-            }
+            let html = '<div class="token-item"><span class="token-symbol">NULL-COIN</span><span>0.00</span></div>';
+            userTokens.forEach(t => {
+                html += `<div class="token-item"><span class="token-symbol">${t.symbol}</span><span>${t.supply.toLocaleString()}</span></div>`;
+            });
             listEl.innerHTML = html;
         }
 
