@@ -519,7 +519,25 @@
             }
             document.getElementById('txAmountLabel').innerText = `Transfer Amount (Available: ${bal.toLocaleString()} ${asset}):`;
         }
+async function fetchNetworkVitals() {
+    try {
+        const res = await fetch('/api/networkVitals');
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('statNodes').innerText = data.activeNodes.toLocaleString();
+            document.getElementById('statWallets').innerText = data.totalWallets.toLocaleString();
+            document.getElementById('statHeight').innerText = data.blockHeight.toLocaleString();
+            document.getElementById('statFees').innerText = data.totalFeesPaid.toFixed(4) + ' LUN';
+            document.getElementById('statTxs').innerText = data.totalTransactions.toLocaleString();
+        }
+    } catch (err) {
+        console.error('Failed to load network vitals:', err);
+    }
+}
 
+// Poll vitals every second
+setInterval(fetchNetworkVitals, 1000);
+fetchNetworkVitals();
         async function fetchRecentTransactions() {
             const feedEl = document.getElementById('liveTxFeed');
             if (!currentWallet) {
