@@ -378,7 +378,14 @@
             }
 
             try {
-                const messagePayload = `NullNet Transfer: Send ${amount} ${asset} to ${recipient}`;
+                // Structured JSON payload matching backend signature verification expectation
+                const messagePayload = JSON.stringify({
+                    sender: sender,
+                    recipient: recipient,
+                    amount: amount,
+                    asset: asset
+                });
+
                 const secretKeyBytes = Base58.decode(privateKeyStr);
                 const messageBytes = new TextEncoder().encode(messagePayload);
                 const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
