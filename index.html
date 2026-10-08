@@ -8,10 +8,10 @@
     <style>
         :root {
             --bg-deep: #030207;
-            --bg-card: #0c0e17;
-            --bg-input: #131722;
-            --border-color: #1e2638;
-            --border-glow: rgba(147, 51, 234, 0.3);
+            --bg-card: #0a0d16;
+            --bg-input: #111522;
+            --border-color: #1f273d;
+            --border-glow: rgba(147, 51, 234, 0.4);
             --accent-purple: #9333ea;
             --accent-indigo: #4f46e5;
             --accent-glow: #00f2fe;
@@ -27,63 +27,77 @@
             color: var(--text-main); 
             padding: 40px 20px; 
             margin: 0; 
-            background-image: radial-gradient(circle at 50% 0%, rgba(79, 70, 229, 0.12) 0%, transparent 60%);
+            background-image: 
+                radial-gradient(circle at 20% 10%, rgba(147, 51, 234, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 80% 90%, rgba(0, 242, 254, 0.06) 0%, transparent 40%);
             min-height: 100vh;
         }
 
-        .container { max-width: 900px; margin: 0 auto; }
+        .container { max-width: 960px; margin: 0 auto; }
 
         header { 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
             background: var(--bg-card); 
-            padding: 22px 30px; 
-            border-radius: 16px; 
+            padding: 24px 32px; 
+            border-radius: 18px; 
             border: 1px solid var(--border-color); 
             margin-bottom: 25px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.6); 
+            box-shadow: 0 12px 35px rgba(0,0,0,0.7); 
+            position: relative;
+            overflow: hidden;
         }
-        .brand { display: flex; align-items: center; gap: 12px; }
-        .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent-purple), var(--accent-indigo)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; box-shadow: 0 0 15px rgba(147, 51, 234, 0.4); }
-        h1 { margin: 0; font-size: 20px; letter-spacing: -0.5px; background: linear-gradient(90deg, #fff, var(--text-muted)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        
-        .status-pill { display: flex; align-items: center; gap: 8px; font-size: 12px; background: rgba(52, 211, 153, 0.1); color: var(--success); border: 1px solid rgba(52, 211, 153, 0.2); padding: 6px 14px; border-radius: 20px; font-weight: 500; }
-        .status-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; box-shadow: 0 0 8px var(--success); }
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-purple), transparent);
+        }
 
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .brand { display: flex; align-items: center; gap: 14px; }
+        .logo-icon { width: 42px; height: 42px; background: linear-gradient(135deg, var(--accent-purple), var(--accent-indigo)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; box-shadow: 0 0 20px rgba(147, 51, 234, 0.5); }
+        h1 { margin: 0; font-size: 22px; letter-spacing: -0.5px; background: linear-gradient(90deg, #fff, var(--text-muted)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .status-pill { display: flex; align-items: center; gap: 8px; font-size: 12px; background: rgba(52, 211, 153, 0.1); color: var(--success); border: 1px solid rgba(52, 211, 153, 0.3); padding: 6px 16px; border-radius: 20px; font-weight: 500; }
+        .status-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; box-shadow: 0 0 10px var(--success); }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
         @media(max-width: 768px) { .grid { grid-template-columns: 1fr; } }
         
-        .card { background: var(--bg-card); padding: 25px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 8px 25px rgba(0,0,0,0.4); position: relative; overflow: hidden; }
+        .card { background: var(--bg-card); padding: 28px; border-radius: 18px; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; overflow: hidden; }
         .card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, var(--border-glow), transparent); }
 
-        h3 { margin-top: 0; color: #fff; font-size: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; align-items: center; gap: 10px; font-weight: 600; }
-        p.desc { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.5; }
+        h3 { margin-top: 0; color: #fff; font-size: 17px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; display: flex; align-items: center; gap: 10px; font-weight: 600; }
+        p.desc { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6; }
 
-        label { display: block; margin-top: 14px; font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
-        input { width: 100%; padding: 12px 16px; margin-top: 6px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; box-sizing: border-box; font-size: 13px; font-family: monospace; transition: border-color 0.2s; }
-        input:focus { outline: none; border-color: var(--accent-purple); box-shadow: 0 0 10px rgba(147, 51, 234, 0.2); }
+        label { display: block; margin-top: 14px; font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.9px; }
+        input { width: 100%; padding: 13px 16px; margin-top: 6px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; box-sizing: border-box; font-size: 13px; font-family: monospace; transition: all 0.2s; }
+        input:focus { outline: none; border-color: var(--accent-purple); box-shadow: 0 0 12px rgba(147, 51, 234, 0.25); }
 
-        button { background: linear-gradient(135deg, var(--accent-purple), var(--accent-indigo)); color: white; border: none; padding: 12px 18px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; width: 100%; margin-top: 14px; box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3); }
-        button:hover { opacity: 0.95; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(147, 51, 234, 0.4); }
-        button.secondary { background: #181d2d; border: 1px solid var(--border-color); box-shadow: none; color: var(--text-muted); }
-        button.secondary:hover { background: #22283e; color: #fff; border-color: var(--accent-purple); }
+        button { background: linear-gradient(135deg, var(--accent-purple), var(--accent-indigo)); color: white; border: none; padding: 13px 18px; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; width: 100%; margin-top: 16px; box-shadow: 0 4px 18px rgba(147, 51, 234, 0.35); }
+        button:hover { opacity: 0.95; transform: translateY(-1px); box-shadow: 0 6px 22px rgba(147, 51, 234, 0.45); }
+        button.secondary { background: #141928; border: 1px solid var(--border-color); box-shadow: none; color: var(--text-muted); }
+        button.secondary:hover { background: #1c2338; color: #fff; border-color: var(--accent-purple); }
 
-        .portfolio-box { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-top: 15px; }
-        .balance-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
-        .balance-amount { font-size: 24px; font-weight: 700; color: #fff; margin: 10px 0; font-family: monospace; }
+        .portfolio-box { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 14px; padding: 18px; margin-top: 16px; }
+        .balance-header { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-color); padding-bottom: 12px; letter-spacing: 0.5px; }
+        .balance-amount { font-size: 26px; font-weight: 700; color: #fff; margin: 12px 0; font-family: monospace; }
         
-        .token-list { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-        .token-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 8px; font-size: 13px; border: 1px solid rgba(255,255,255,0.03); }
+        .token-list { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; max-height: 140px; overflow-y: auto; }
+        .token-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: 10px; font-size: 13px; border: 1px solid rgba(255,255,255,0.04); }
         .token-symbol { font-weight: 600; color: var(--accent-glow); }
 
-        .address-pill { background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px; font-family: monospace; font-size: 11px; word-break: break-all; color: var(--text-muted); margin-top: 10px; border: 1px dashed var(--border-color); }
-        pre { background: var(--bg-deep); padding: 15px; border-radius: 10px; color: var(--success); overflow-x: auto; font-size: 12px; border: 1px solid var(--border-color); margin-top: 15px; max-height: 150px; font-family: monospace; }
+        .address-pill { background: rgba(0,0,0,0.4); padding: 10px 14px; border-radius: 10px; font-family: monospace; font-size: 11px; word-break: break-all; color: var(--text-muted); margin-top: 14px; border: 1px dashed var(--border-color); }
+        pre { background: var(--bg-deep); padding: 16px; border-radius: 12px; color: var(--success); overflow-x: auto; font-size: 12px; border: 1px solid var(--border-color); margin-top: 16px; max-height: 160px; font-family: monospace; }
         .btn-row { display: flex; gap: 10px; }
 
-        .tx-feed { margin-top: 12px; max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-        .tx-row { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; font-family: monospace; }
-        .tx-badge { background: rgba(147, 51, 234, 0.2); color: var(--accent-glow); padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+        .tx-feed { margin-top: 14px; max-height: 190px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .tx-row { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 14px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; font-family: monospace; }
+        .tx-badge { background: rgba(147, 51, 234, 0.25); color: var(--accent-glow); padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -93,7 +107,7 @@
                 <div class="logo-icon">Λ</div>
                 <div>
                     <h1>Lunul NullNet</h1>
-                    <div style="font-size: 11px; color: var(--text-muted);">High-Performance Sealevel Engine</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">High-Performance Sealevel Protocol</div>
                 </div>
             </div>
             <div class="status-pill" id="statusPill">
@@ -103,17 +117,17 @@
         </header>
 
         <div class="grid">
-            <!-- WALLET & TOKENS -->
+            <!-- WALLET & ASSET PORTFOLIO -->
             <div class="card">
-                <h3>🔑 Wallet Portfolio</h3>
-                <p class="desc">Manage your Ed25519 LUN node keys and live balance feeds.</p>
+                <h3>🔑 Wallet & Assets</h3>
+                <p class="desc">Manage your Ed25519 node keypair, native LUN balance, and custom token holdings.</p>
                 
                 <div class="btn-row">
                     <button onclick="generateWallet()">New Wallet</button>
                     <button class="secondary" onclick="document.getElementById('importBox').style.display='block'">Restore Key</button>
                 </div>
 
-                <div id="importBox" style="display:none; margin-top: 12px;">
+                <div id="importBox" style="display:none; margin-top: 14px;">
                     <label>Base58 Private Key:</label>
                     <input type="password" id="importPrivateKey" placeholder="Paste secret key...">
                     <button class="secondary" onclick="restoreWallet()">Load Keypair</button>
@@ -122,22 +136,32 @@
                 <div id="walletDisplay" style="display:none;">
                     <div class="portfolio-box">
                         <div class="balance-header">
-                            <span>LUN NATIVE BALANCE</span>
+                            <span>NATIVE BALANCE</span>
                             <span id="walletAddressShort" style="color:var(--accent-glow);">--</span>
                         </div>
                         <div class="balance-amount" id="nativeBalance">0.00 <span style="font-size:14px; color:var(--text-muted);">LUN</span></div>
-                        <button class="secondary" onclick="refreshBalance()" style="margin-top:5px; padding:6px;">Refresh Balance</button>
+                        
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                            <span style="font-size:11px; color:var(--text-muted); font-weight:600;">TOKEN HOLDINGS</span>
+                            <button class="secondary" onclick="refreshBalance()" style="margin-top:0; padding:5px 10px; font-size:11px; width:auto;">Refresh</button>
+                        </div>
+                        <div class="token-list" id="tokenHoldingsList">
+                            <div class="token-item">
+                                <span class="token-symbol">NULL-COIN</span>
+                                <span>0.00</span>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="address-pill" id="walletDetailsBox"></div>
-                    <button onclick="requestFaucet()" style="background: linear-gradient(135deg, #059669, #047857); margin-top: 12px;">Claim 250 Faucet Test Coins</button>
+                    <button onclick="requestFaucet()" style="background: linear-gradient(135deg, #059669, #047857); margin-top: 14px;">Claim 250 Faucet Test Coins</button>
                 </div>
             </div>
 
-            <!-- SEND / TRANSACTION INTERFACE -->
+            <!-- UNIVERSAL TRANSFER -->
             <div class="card">
                 <h3>💸 Universal Transfer</h3>
-                <p class="desc">Execute signed transfers and broadcast instantly to the chain ledger.</p>
+                <p class="desc">Execute cryptographically signed transfers across network endpoints.</p>
                 
                 <label>Sender Address:</label>
                 <input type="text" id="txSender" placeholder="LUN...">
@@ -154,18 +178,35 @@
                 <button onclick="sendTransaction()">Sign & Broadcast Transfer</button>
             </div>
 
+            <!-- SPL TOKEN CREATOR -->
+            <div class="card">
+                <h3>🪙 SPL Token Creator</h3>
+                <p class="desc">Deploy custom token program state with designated symbols and supply allocations.</p>
+                
+                <label>Token Program ID / Mint Address:</label>
+                <input type="text" id="tokenProgramId" value="TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">
+                
+                <label>Token Symbol:</label>
+                <input type="text" id="tokenSymbol" value="LUNM">
+                
+                <label>Initial Total Supply:</label>
+                <input type="number" id="tokenSupply" value="1000000">
+                
+                <button onclick="createSplToken()">Deploy Token Program State</button>
+            </div>
+
             <!-- LIVE LEDGER TRANSACTIONS -->
-            <div class="card" style="grid-column: span 2;">
-                <h3>📜 Live Chain Ledger & Transactions</h3>
-                <p class="desc">Real-time inspection of recent blocks and confirmed state transfers across the network.</p>
+            <div class="card">
+                <h3>📜 Live Ledger Feed</h3>
+                <p class="desc">Real-time inspection of confirmed blocks and network transactions.</p>
                 
                 <div class="btn-row" style="margin-bottom: 10px;">
-                    <button class="secondary" onclick="fetchRecentTransactions()">Refresh Transactions Feed</button>
-                    <button class="secondary" onclick="checkHealth()">Node Health</button>
+                    <button class="secondary" onclick="fetchRecentTransactions()" style="margin-top:0;">Refresh Feed</button>
+                    <button class="secondary" onclick="checkHealth()" style="margin-top:0;">Node Health</button>
                 </div>
 
                 <div class="tx-feed" id="liveTxFeed">
-                    <div class="tx-row"><span>Loading confirmed ledger transactions...</span></div>
+                    <div class="tx-row"><span>Loading ledger feed...</span></div>
                 </div>
 
                 <pre id="output">System console ready...</pre>
@@ -217,6 +258,7 @@
         };
 
         let currentWallet = null;
+        let userTokens = [];
 
         async function checkHealth() {
             try {
@@ -290,6 +332,7 @@
             
             document.getElementById('txSender').value = wallet.address;
             document.getElementById('txPrivateKey').value = wallet.privateKey;
+            updateTokenPortfolio();
         }
 
         async function requestFaucet() {
@@ -344,6 +387,51 @@
             }
         }
 
+        async function createSplToken() {
+            const programId = document.getElementById('tokenProgramId').value.trim();
+            const symbol = document.getElementById('tokenSymbol').value.trim();
+            const supply = parseFloat(document.getElementById('tokenSupply').value);
+
+            if (!currentWallet) {
+                alert('Please generate or restore a wallet first.');
+                return;
+            }
+
+            try {
+                const action = 'deployToken';
+                const message = `Invoke ${programId}:${action} Symbol:${symbol} Supply:${supply}`;
+                const secretKeyBytes = Base58.decode(currentWallet.privateKey);
+                const messageBytes = new TextEncoder().encode(message);
+                const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
+                const signature = Base58.encode(signatureBytes);
+
+                const res = await fetch('/api/invokeSmartContract', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ programId, action, symbol, supply, signer: currentWallet.address, signature })
+                });
+                const data = await res.json();
+                document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+
+                if (!userTokens.some(t => t.symbol === symbol)) {
+                    userTokens.push({ symbol, supply });
+                }
+                updateTokenPortfolio();
+                fetchRecentTransactions();
+            } catch (err) {
+                document.getElementById('output').innerText = 'Token Deploy Error: ' + err.message;
+            }
+        }
+
+        function updateTokenPortfolio() {
+            const listEl = document.getElementById('tokenHoldingsList');
+            let html = '<div class="token-item"><span class="token-symbol">NULL-COIN</span><span>0.00</span></div>';
+            userTokens.forEach(t => {
+                html += `<div class="token-item"><span class="token-symbol">${t.symbol}</span><span>${t.supply.toLocaleString()}</span></div>`;
+            });
+            listEl.innerHTML = html;
+        }
+
         async function fetchRecentTransactions() {
             try {
                 const res = await fetch('/api/getRecentTransactions');
@@ -354,7 +442,7 @@
                     let html = '';
                     data.transactions.forEach(tx => {
                         html += `<div class="tx-row">
-                            <div><span class="tx-badge">Block #${tx.blockHeight}</span> <b>${tx.amount} LUN</b> from ${tx.sender.slice(0,6)}... to ${tx.recipient.slice(0,6)}...</div>
+                            <div><span class="tx-badge">Block #${tx.blockHeight}</span> <b>${tx.amount}</b> ${tx.type}</div>
                             <div style="color:var(--text-muted); font-size:10px;">${new Date(tx.timestamp).toLocaleTimeString()}</div>
                         </div>`;
                     });
