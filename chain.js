@@ -50,6 +50,7 @@ db.exec(`
     sender TEXT NOT NULL,
     recipient TEXT NOT NULL,
     amount REAL NOT NULL,
+    asset TEXT NOT NULL DEFAULT 'LUN',
     type TEXT NOT NULL DEFAULT 'TRANSFER',
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (block_id) REFERENCES blocks(id)
@@ -139,7 +140,7 @@ app.get('/api/getRecentTransactions', (req, res) => {
   const limit = parseInt(req.query.limit) || 20;
   try {
     const txs = db.prepare(`
-      SELECT t.signature, t.sender, t.recipient, t.amount, t.type, t.timestamp, b.height as blockHeight
+      SELECT t.signature, t.sender, t.recipient, t.amount, t.asset, t.type, t.timestamp, b.height as blockHeight
       FROM transactions t
       JOIN blocks b ON t.block_id = b.id
       ORDER BY t.id DESC
@@ -211,7 +212,8 @@ app.post('/api/sendTransaction', (req, res) => {
 
   try {
     const parsedAmount = parseFloat(amount);
-    const messagePayload = `NullNet Transfer: Send ${parsedAmount} to ${recipient}`;
+    const assetSymbol = asset || 'LUN';
+    const messagePayload = `NullNet Transfer: Send ${parsedAmount} ${assetSymbol} to ${recipient}`;
     
     if (!verifyWeb3Signature(messagePayload, signature, sender)) {
       return res.status(401).json({ error: 'Cryptographic signature verification failed.' });
@@ -234,6 +236,28 @@ app.post('/api/sendTransaction', (req, res) => {
         }
         db.prepare('UPDATE wallets SET balance = balance - ? WHERE address = ?').run(parsedAmount, sender);
         db.prepare('UPDATE wallets SET balance = balance + ? WHERE address = ?').run(parsedAmount, recipient);
+      } else {
+        let senderToken = db.prepare(`
+          SELECT balance FROM token_accounts 
+          WHERE mint = (SELECT mint FROM tokens WHERE symbol = ?) AND owner = ?
+        `).get(asset, sender);
+
+        if (!senderToken || senderToken.balance < parsedAmount) {
+          throw new Error(`Insufficient ${asset} balance in sender account.`);
+        }
+
+        db.prepare(`
+          UPDATE token_accounts SET balance = balance - ? 
+          WHERE mint = (SELECT mint FROM tokens WHERE symbol = ?) AND owner = ?
+        `).run(parsedAmount, asset, sender);
+
+        const mintRow = db.prepare('SELECT mint FROM tokens WHERE symbol = ?').get(asset);
+        if (mintRow) {
+          db.prepare(`
+            INSERT INTO token_accounts (mint, owner, balance) VALUES (?, ?, ?)
+            ON CONFLICT(mint, owner) DO UPDATE SET balance = balance + ?
+          `).run(mintRow.mint, recipient, parsedAmount, parsedAmount);
+        }
       }
 
       const latestBlock = db.prepare('SELECT * FROM blocks ORDER BY height DESC LIMIT 1').get();
@@ -248,9 +272,9 @@ app.post('/api/sendTransaction', (req, res) => {
       const blockId = blockResult.lastInsertRowid;
 
       db.prepare(`
-        INSERT INTO transactions (block_id, signature, sender, recipient, amount, type, timestamp)
-        VALUES (?, ?, ?, ?, ?, 'TRANSFER', ?)
-      `).run(blockId, signature, sender, recipient, parsedAmount, timestamp);
+        INSERT INTO transactions (block_id, signature, sender, recipient, amount, asset, type, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, 'TRANSFER', ?)
+      `).run(blockId, signature, sender, recipient, parsedAmount, assetSymbol, timestamp);
 
       return { blockHeight: newHeight, blockHash: newHash, signature };
     });
