@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NullNet Chain | Lunul DApp Console</title>
-    <!-- Include TweetNaCl and bs58 via CDN for browser-side Ed25519 signing -->
+    <!-- Include TweetNaCl for Ed25519 cryptography -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tweetnacl/1.0.3/nacl-fast.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bs58@5.0.0/dist/index.umd.min.js"></script>
     <style>
         :root {
             --bg-main: #090d16;
@@ -22,17 +21,14 @@
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-main); color: var(--text-main); padding: 30px; margin: 0; }
         .container { max-width: 800px; margin: 0 auto; }
         
-        /* Header */
         header { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 20px 25px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
         h1 { color: var(--accent-blue); margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px; }
         .badge { font-size: 11px; background: rgba(56, 189, 248, 0.15); color: var(--accent-blue); border: 1px solid var(--accent-blue); padding: 4px 10px; border-radius: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 
-        /* Grid Layout */
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media(max-width: 768px) { .grid { grid-template-columns: 1fr; } }
         
         .card { background: var(--bg-card); padding: 22px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        .card.full { grid-column: span 2; }
         
         h3 { margin-top: 0; color: var(--accent-blue); font-size: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
         p.desc { font-size: 12px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.4; }
@@ -54,14 +50,13 @@
 </head>
 <body>
     <div class="container">
-        <!-- HEADER -->
         <header>
             <h1>⚡ Lunul NullNet Console</h1>
             <span class="badge" id="status">Connecting...</span>
         </header>
 
         <div class="grid">
-            <!-- SECTION 1: WALLET MANAGEMENT (Generate & Restore) -->
+            <!-- SECTION 1: WALLET MANAGEMENT -->
             <div class="card">
                 <h3>🔑 Wallet Management</h3>
                 <p class="desc">Generate a fresh Ed25519 LUN node wallet or restore an existing one using your private key.</p>
@@ -100,7 +95,7 @@
                 <button onclick="sendTransaction()">Sign & Broadcast</button>
             </div>
 
-            <!-- SECTION 3: ADVANCED SPL TOKEN CREATOR -->
+            <!-- SECTION 3: SPL TOKEN CREATOR -->
             <div class="card">
                 <h3>🪙 SPL Token Creator</h3>
                 <p class="desc">Deploy custom token state and allocate initial total supplies onto the ledger state.</p>
@@ -134,6 +129,63 @@
     </div>
 
     <script>
+        // Native browser-safe Base58 encoder/decoder utility to prevent external CDN mismatch
+        const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+        const ALPHABET_MAP = {};
+        for (let i = 0; i < ALPHABET.length; i++) {
+            ALPHABET_MAP[ALPHABET[i]] = i;
+        }
+
+        const Base58 = {
+            encode: function(buffer) {
+                if (buffer.length === 0) return '';
+                let digits = [0];
+                for (let i = 0; i < buffer.length; i++) {
+                    let carry = buffer[i];
+                    for (let j = 0; j < digits.length; j++) {
+                        carry += digits[j] << 8;
+                        digits[j] = carry % 58;
+                        carry = (carry / 58) | 0;
+                    }
+                    while (carry > 0) {
+                        digits.push(carry % 58);
+                        carry = (carry / 58) | 0;
+                    }
+                }
+                let sn = '';
+                for (let i = 0; i < buffer.length && buffer[i] === 0; i++) {
+                    sn += ALPHABET[0];
+                }
+                for (let i = digits.length - 1; i >= 0; i--) {
+                    sn += ALPHABET[digits[i]];
+                }
+                return sn;
+            },
+            decode: function(string) {
+                if (string.length === 0) return new Uint8Array(0);
+                let bytes = [0];
+                for (let i = 0; i < string.length; i++) {
+                    let c = string[i];
+                    let digit = ALPHABET_MAP[c];
+                    if (digit === undefined) throw new Error('Invalid base58 character');
+                    let carry = digit;
+                    for (let j = 0; j < bytes.length; j++) {
+                        carry += bytes[j] * 58;
+                        bytes[j] = carry & 0xff;
+                        carry >>= 8;
+                    }
+                    while (carry > 0) {
+                        bytes.push(carry & 0xff);
+                        carry >>= 8;
+                    }
+                }
+                for (let i = 0; i < string.length && string[i] === ALPHABET[0]; i++) {
+                    bytes.push(0);
+                }
+                return new Uint8Array(bytes.reverse());
+            }
+        };
+
         let currentWallet = null;
 
         async function checkHealth() {
@@ -177,13 +229,12 @@
             const pk = document.getElementById('importPrivateKey').value.trim();
             if (!pk) return alert('Please enter a valid base58 private key.');
             try {
-                const secretKeyBytes = bs58.decode(pk);
+                const secretKeyBytes = Base58.decode(pk);
                 if (secretKeyBytes.length !== 64 && secretKeyBytes.length !== 32) {
                     throw new Error('Invalid Ed25519 secret key length.');
                 }
-                // Derive public key & address format matching server logic
                 const keypair = nacl.sign.keyPair.fromSeed(secretKeyBytes.length === 64 ? secretKeyBytes.slice(0, 32) : secretKeyBytes);
-                const address = 'LUN' + bs58.encode(keypair.publicKey);
+                const address = 'LUN' + Base58.encode(keypair.publicKey);
                 
                 currentWallet = { address, privateKey: pk };
                 displayWalletInfo(currentWallet);
@@ -231,10 +282,10 @@
 
             try {
                 const messagePayload = `NullNet Transfer: Send ${amount} to ${recipient}`;
-                const secretKeyBytes = bs58.decode(privateKeyStr);
+                const secretKeyBytes = Base58.decode(privateKeyStr);
                 const messageBytes = new TextEncoder().encode(messagePayload);
                 const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
-                const signature = bs58.encode(signatureBytes);
+                const signature = Base58.encode(signatureBytes);
 
                 const res = await fetch('/api/sendTransaction', {
                     method: 'POST',
@@ -262,10 +313,10 @@
                 const action = 'deployToken';
                 const message = `Invoke ${programId}:${action} Symbol:${symbol} Supply:${supply}`;
 
-                const secretKeyBytes = bs58.decode(currentWallet.privateKey);
+                const secretKeyBytes = Base58.decode(currentWallet.privateKey);
                 const messageBytes = new TextEncoder().encode(message);
                 const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
-                const signature = bs58.encode(signatureBytes);
+                const signature = Base58.encode(signatureBytes);
 
                 const res = await fetch('/api/invokeSmartContract', {
                     method: 'POST',
