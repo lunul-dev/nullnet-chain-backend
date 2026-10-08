@@ -300,6 +300,33 @@ app.post('/api/faucet', (req, res) => {
   }
 });
 
+// ============================================================================
+// BACKGROUND BLOCK PRODUCTION ENGINE (MINER / HEARTBEAT)
+// ============================================================================
+const BLOCK_INTERVAL_MS = 15000; // Mints an automated block every 15 seconds
+
+const produceBackgroundBlock = db.transaction(() => {
+  const latestBlock = db.prepare('SELECT * FROM blocks ORDER BY height DESC LIMIT 1').get();
+  const newHeight = latestBlock.height + 1;
+  const timestamp = new Date().toISOString();
+  const newHash = computeBlockHash(newHeight, latestBlock.hash, timestamp);
+
+  db.prepare(`
+    INSERT INTO blocks (height, prev_hash, hash, timestamp) VALUES (?, ?, ?, ?)
+  `).run(newHeight, latestBlock.hash, newHash, timestamp);
+
+  return { height: newHeight, hash: newHash };
+});
+
+setInterval(() => {
+  try {
+    const result = produceBackgroundBlock();
+    console.log(`[NullNet Miner] Successfully mined block #${result.height} | Hash: ${result.hash.substring(0, 12)}...`);
+  } catch (err) {
+    console.error('[NullNet Miner Error]:', err.message);
+  }
+}, BLOCK_INTERVAL_MS);
+
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'online', network: 'NullNet Chain Backend is live.' });
 });
