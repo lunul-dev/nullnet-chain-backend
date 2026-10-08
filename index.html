@@ -146,7 +146,7 @@
                         
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
                             <span style="font-size:11px; color:var(--text-muted); font-weight:600;">TOKEN HOLDINGS</span>
-                            <button class="secondary" onclick="refreshWalletData()" style="margin-top:0; padding:5px 10px; font-size:11px; width:auto;">Refresh</button>
+                            <button class="secondary" onclick="refreshWalletData()" style="margin-top:0; padding:5px 10px; font-size:11px; width:auto;">Refresh Now</button>
                         </div>
                         <div class="token-list" id="tokenHoldingsList">
                             <div class="token-item">
@@ -206,10 +206,10 @@
             <!-- WALLET TRANSACTION HISTORY -->
             <div class="card">
                 <h3>📜 Wallet Transactions</h3>
-                <p class="desc">Activity history for your active wallet address.</p>
+                <p class="desc">Activity history for your active wallet address (auto-updates every 5s).</p>
                 
                 <div class="btn-row" style="margin-bottom: 10px;">
-                    <button class="secondary" onclick="fetchRecentTransactions()" style="margin-top:0;">Refresh History</button>
+                    <button class="secondary" onclick="refreshWalletData()" style="margin-top:0;">Manual Sync</button>
                     <button class="secondary" onclick="checkHealth()" style="margin-top:0;">Node Health</button>
                 </div>
 
@@ -268,6 +268,7 @@
         let currentWallet = null;
         let userTokens = [];
         let nativeBalanceVal = 0.00;
+        let autoRefreshInterval = null;
 
         async function checkHealth() {
             try {
@@ -291,9 +292,10 @@
                 const data = await res.json();
                 if (data.success) {
                     currentWallet = data.wallet;
+                    displayWalletInfo(currentWallet);
                     await refreshWalletData();
                     document.getElementById('output').innerText = "Wallet generated & funded successfully!";
-                    fetchRecentTransactions();
+                    startAutoRefresh();
                 }
             } catch (err) {
                 alert('Wallet generation failed: ' + err.message);
@@ -312,22 +314,39 @@
                 const address = 'LUN' + Base58.encode(keypair.publicKey);
                 
                 currentWallet = { address, privateKey: pk };
-                document.getElementById('walletDetailsBox').innerText = `Address: ${address}\nPrivate Key: ${pk}`;
-                document.getElementById('txSender').value = address;
-                document.getElementById('txPrivateKey').value = pk;
-                
+                displayWalletInfo(currentWallet);
                 await refreshWalletData();
                 document.getElementById('output').innerText = "Wallet restored successfully!";
-                fetchRecentTransactions();
+                startAutoRefresh();
             } catch (err) {
                 alert('Failed to restore wallet: ' + err.message);
             }
         }
 
-        async function refreshWalletData() {
+        function startAutoRefresh() {
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+            // Automatically poll balance, tokens, and transaction logs every 5 seconds
+            autoRefreshInterval = setInterval(async () => {
+                if (currentWallet) {
+                    await refreshWalletData(false); // silent refresh
+                }
+            }, 5000);
+        }
+
+        async function refreshWalletData(verbose = true) {
             if (!currentWallet) return;
-            await refreshBalance();
-            await fetchUserTokens();
+            try {
+                await Promise.all([
+                    refreshBalance(),
+                    fetchUserTokens(),
+                    fetchRecentTransactions()
+                ]);
+                if (verbose) {
+                    console.log('Wallet data successfully synced.');
+                }
+            } catch (err) {
+                console.error('Error during automatic data sync:', err);
+            }
         }
 
         async function refreshBalance() {
@@ -336,7 +355,8 @@
                 const res = await fetch(`/api/getBalance?address=${encodeURIComponent(currentWallet.address)}`);
                 const data = await res.json();
                 nativeBalanceVal = data.balance;
-                displayWalletInfo(currentWallet, data.balance);
+                document.getElementById('nativeBalance').innerHTML = `${nativeBalanceVal.toFixed(2)} <span style="font-size:14px; color:var(--text-muted);">LUN</span>`;
+                updateAssetDropdown();
             } catch (err) {
                 console.error('Failed to fetch balance:', err);
             }
@@ -357,17 +377,12 @@
             }
         }
 
-        function displayWalletInfo(wallet, balance = 0.00) {
-            nativeBalanceVal = balance;
+        function displayWalletInfo(wallet) {
             document.getElementById('walletDisplay').style.display = 'block';
             document.getElementById('walletAddressShort').innerText = wallet.address.slice(0, 6) + '...' + wallet.address.slice(-4);
-            document.getElementById('nativeBalance').innerHTML = `${balance.toFixed(2)} <span style="font-size:14px; color:var(--text-muted);">LUN</span>`;
             document.getElementById('walletDetailsBox').innerText = `Address: ${wallet.address}\nPrivate Key: ${wallet.privateKey}`;
-            
             document.getElementById('txSender').value = wallet.address;
             document.getElementById('txPrivateKey').value = wallet.privateKey;
-            updateTokenPortfolio();
-            updateAssetDropdown();
         }
 
         async function requestFaucet() {
@@ -381,7 +396,6 @@
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
                 await refreshWalletData();
-                fetchRecentTransactions();
             } catch (err) {
                 alert('Faucet error: ' + err.message);
             }
@@ -418,7 +432,6 @@
                 
                 if (data.success) {
                     await refreshWalletData();
-                    fetchRecentTransactions();
                 }
             } catch (err) {
                 document.getElementById('output').innerText = 'Transaction Error: ' + err.message;
@@ -452,7 +465,6 @@
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
 
                 await refreshWalletData();
-                fetchRecentTransactions();
             } catch (err) {
                 document.getElementById('output').innerText = 'Token Deploy Error: ' + err.message;
             }
@@ -531,7 +543,6 @@
                 }
             } catch (err) {
                 console.error('Failed to load transaction history:', err);
-                feedEl.innerHTML = '<div class="tx-row"><span>Error loading wallet transactions.</span></div>';
             }
         }
 
