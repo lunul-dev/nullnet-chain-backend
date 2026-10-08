@@ -414,8 +414,8 @@
 
             try {
                 const parsedAmount = parseFloat(amount);
-                // Append random salt to ensure unique transaction signature hash on repeat sends
-                const nonce = Math.random().toString(36.substring(2));
+                // Corrected random salt generation
+                const nonce = Math.random().toString(36).substring(2);
                 const messagePayload = `NullNet Transfer: Send ${parsedAmount} to ${recipient} [${nonce}]`;
 
                 const secretKeyBytes = Base58.decode(privateKeyStr);
@@ -487,7 +487,7 @@
 
         function updateAssetDropdown() {
             const selectEl = document.getElementById('transferAssetSelect');
-            const currentSelected = selectEl.value; // Remember currently selected asset
+            const currentSelected = selectEl.value; 
             
             let html = `<option value="LUN">LUN (Native) - Balance: ${nativeBalanceVal.toFixed(2)}</option>`;
             userTokens.forEach(t => {
@@ -495,7 +495,6 @@
             });
             selectEl.innerHTML = html;
             
-            // Restore previous selection if it still exists
             if ([...selectEl.options].some(opt => opt.value === currentSelected)) {
                 selectEl.value = currentSelected;
             }
