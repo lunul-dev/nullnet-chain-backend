@@ -146,7 +146,7 @@
                         
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
                             <span style="font-size:11px; color:var(--text-muted); font-weight:600;">TOKEN HOLDINGS</span>
-                            <button class="secondary" onclick="refreshBalance()" style="margin-top:0; padding:5px 10px; font-size:11px; width:auto;">Refresh</button>
+                            <button class="secondary" onclick="refreshAllData()" style="margin-top:0; padding:5px 10px; font-size:11px; width:auto;">Refresh</button>
                         </div>
                         <div class="token-list" id="tokenHoldingsList">
                             <div class="token-item">
@@ -281,6 +281,13 @@
             }
         }
 
+        async function refreshAllData() {
+            if (!currentWallet) return;
+            await refreshBalance();
+            await fetchUserTokens();
+            await fetchRecentTransactions();
+        }
+
         async function generateWallet() {
             try {
                 const res = await fetch('/api/faucet', {
@@ -293,8 +300,7 @@
                     currentWallet = data.wallet;
                     displayWalletInfo(data.wallet, 250.00);
                     document.getElementById('output').innerText = "Wallet generated & funded successfully!";
-                    fetchUserTokens();
-                    fetchRecentTransactions();
+                    await refreshAllData();
                 }
             } catch (err) {
                 alert('Wallet generation failed: ' + err.message);
@@ -313,13 +319,12 @@
                 const address = 'LUN' + Base58.encode(keypair.publicKey);
                 
                 currentWallet = { address, privateKey: pk };
-                await refreshBalance();
-                await fetchUserTokens();
                 document.getElementById('walletDetailsBox').innerText = `Address: ${address}\nPrivate Key: ${pk}`;
                 document.getElementById('txSender').value = address;
                 document.getElementById('txPrivateKey').value = pk;
+                
+                await refreshAllData();
                 document.getElementById('output').innerText = "Wallet restored successfully!";
-                fetchRecentTransactions();
             } catch (err) {
                 alert('Failed to restore wallet: ' + err.message);
             }
@@ -330,8 +335,9 @@
             try {
                 const res = await fetch(`/api/getBalance?address=${encodeURIComponent(currentWallet.address)}`);
                 const data = await res.json();
-                nativeBalanceVal = data.balance;
-                displayWalletInfo(currentWallet, data.balance);
+                nativeBalanceVal = data.balance ?? 0.00;
+                document.getElementById('nativeBalance').innerHTML = `${nativeBalanceVal.toFixed(2)} <span style="font-size:14px; color:var(--text-muted);">LUN</span>`;
+                updateAssetDropdown();
             } catch (err) {
                 console.error('Failed to fetch balance:', err);
             }
@@ -375,8 +381,7 @@
                 });
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
-                await refreshBalance();
-                fetchRecentTransactions();
+                await refreshAllData();
             } catch (err) {
                 alert('Faucet error: ' + err.message);
             }
@@ -396,7 +401,7 @@
 
             try {
                 const parsedAmount = parseFloat(amount);
-                const messagePayload = `NullNet Transfer: Send ${parsedAmount} to ${recipient}`;
+                const messagePayload = `NullNet Transfer: Send ${parsedAmount} ${asset} to ${recipient}`;
 
                 const secretKeyBytes = Base58.decode(privateKeyStr);
                 const messageBytes = new TextEncoder().encode(messagePayload);
@@ -406,14 +411,13 @@
                 const res = await fetch('/api/sendTransaction', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sender, recipient, amount, asset, signature })
+                    body: JSON.stringify({ sender, recipient, amount: parsedAmount, asset, signature })
                 });
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
                 
                 if (data.success) {
-                    await refreshBalance();
-                    fetchRecentTransactions();
+                    await refreshAllData();
                 }
             } catch (err) {
                 document.getElementById('output').innerText = 'Transaction Error: ' + err.message;
@@ -451,7 +455,7 @@
                 }
                 updateTokenPortfolio();
                 updateAssetDropdown();
-                fetchRecentTransactions();
+                await refreshAllData();
             } catch (err) {
                 document.getElementById('output').innerText = 'Token Deploy Error: ' + err.message;
             }
