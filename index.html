@@ -98,6 +98,8 @@
         .tx-feed { margin-top: 14px; max-height: 190px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         .tx-row { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 14px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; font-family: monospace; }
         .tx-badge { background: rgba(147, 51, 234, 0.25); color: var(--accent-glow); padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 600; }
+        .tx-badge.in { background: rgba(52, 211, 153, 0.2); color: var(--success); }
+        .tx-badge.out { background: rgba(244, 63, 94, 0.2); color: var(--error); }
     </style>
 </head>
 <body>
@@ -195,18 +197,18 @@
                 <button onclick="createSplToken()">Deploy Token Program State</button>
             </div>
 
-            <!-- LIVE LEDGER TRANSACTIONS -->
+            <!-- WALLET TRANSACTION HISTORY -->
             <div class="card">
-                <h3>📜 Live Ledger Feed</h3>
-                <p class="desc">Real-time inspection of confirmed blocks and network transactions.</p>
+                <h3>📜 Wallet Transactions</h3>
+                <p class="desc">Activity history for your active wallet address.</p>
                 
                 <div class="btn-row" style="margin-bottom: 10px;">
-                    <button class="secondary" onclick="fetchRecentTransactions()" style="margin-top:0;">Refresh Feed</button>
+                    <button class="secondary" onclick="fetchRecentTransactions()" style="margin-top:0;">Refresh History</button>
                     <button class="secondary" onclick="checkHealth()" style="margin-top:0;">Node Health</button>
                 </div>
 
                 <div class="tx-feed" id="liveTxFeed">
-                    <div class="tx-row"><span>Loading ledger feed...</span></div>
+                    <div class="tx-row"><span>Generate or load a wallet to view transactions...</span></div>
                 </div>
 
                 <pre id="output">System console ready...</pre>
@@ -308,6 +310,7 @@
                 document.getElementById('txSender').value = address;
                 document.getElementById('txPrivateKey').value = pk;
                 document.getElementById('output').innerText = "Wallet restored successfully!";
+                fetchRecentTransactions();
             } catch (err) {
                 alert('Failed to restore wallet: ' + err.message);
             }
@@ -433,30 +436,49 @@
         }
 
         async function fetchRecentTransactions() {
+            const feedEl = document.getElementById('liveTxFeed');
+            if (!currentWallet) {
+                feedEl.innerHTML = '<div class="tx-row"><span>Generate or load a wallet to view transactions...</span></div>';
+                return;
+            }
+
             try {
                 const res = await fetch('/api/getRecentTransactions');
                 const data = await res.json();
-                const feedEl = document.getElementById('liveTxFeed');
                 
                 if (data.success && data.transactions && data.transactions.length > 0) {
-                    let html = '';
-                    data.transactions.forEach(tx => {
-                        html += `<div class="tx-row">
-                            <div><span class="tx-badge">Block #${tx.blockHeight}</span> <b>${tx.amount}</b> ${tx.type}</div>
-                            <div style="color:var(--text-muted); font-size:10px;">${new Date(tx.timestamp).toLocaleTimeString()}</div>
-                        </div>`;
-                    });
-                    feedEl.innerHTML = html;
+                    // Filter transactions specifically for the active wallet address
+                    const walletTxs = data.transactions.filter(tx => 
+                        tx.sender === currentWallet.address || tx.recipient === currentWallet.address
+                    );
+
+                    if (walletTxs.length > 0) {
+                        let html = '';
+                        walletTxs.forEach(tx => {
+                            const isIncoming = tx.recipient === currentWallet.address;
+                            const badgeClass = isIncoming ? 'tx-badge in' : 'tx-badge out';
+                            const badgeText = isIncoming ? 'IN' : 'OUT';
+                            const peer = isIncoming ? `From ${tx.sender.slice(0,6)}...` : `To ${tx.recipient.slice(0,6)}...`;
+
+                            html += `<div class="tx-row">
+                                <div><span class="${badgeClass}">${badgeText}</span> <b>${tx.amount}</b> LUN (${peer})</div>
+                                <div style="color:var(--text-muted); font-size:10px;">${new Date(tx.timestamp).toLocaleTimeString()}</div>
+                            </div>`;
+                        });
+                        feedEl.innerHTML = html;
+                    } else {
+                        feedEl.innerHTML = '<div class="tx-row"><span>No transaction history found for this wallet.</span></div>';
+                    }
                 } else {
                     feedEl.innerHTML = '<div class="tx-row"><span>No confirmed transactions found on chain yet.</span></div>';
                 }
             } catch (err) {
                 console.error('Failed to load transaction history:', err);
+                feedEl.innerHTML = '<div class="tx-row"><span>Error loading wallet transactions.</span></div>';
             }
         }
 
         checkHealth();
-        fetchRecentTransactions();
     </script>
 </body>
 </html>
