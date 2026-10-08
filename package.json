@@ -1,0 +1,28 @@
+{
+  "name": "nullnet-chain-backend",
+  "version": "1.0.0",
+  "description": "Lightweight custom blockchain ledger and payment system using Node.js and SQLite",
+  "main": "chain.js",
+  "scripts": {
+    "start": "node chain.js"
+  },
+  "keywords": [
+    "blockchain",
+    "sqlite",
+    "ledger",
+    "web3",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@solana/web3.js": "^1.95.0",
+    "better-sqlite3": "^11.0.0",
+    "bs58": "^5.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.0",
+    "express": "^4.19.2",
+    "tweetnacl": "^1.0.3"
+  }
+}

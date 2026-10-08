@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Local Database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+
+# Environment variables
+.env
+
+# Logs and PM2 process outputs
+logs/
+*.log
+npm-debug.log*
+pm2.log
+.pm2/

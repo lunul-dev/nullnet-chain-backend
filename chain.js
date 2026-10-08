@@ -1,0 +1,506 @@
+/**
+ * ============================================================================
+ * NULLNET CHAIN - MAIN BACKEND & WEBVIEW ENGINE (`chain.js`)
+ * ============================================================================
+ */
+
+// ============================================================================
+// SECTION 0: DEPENDENCIES & APP CONFIGURATION
+// ============================================================================
+const express = require('express');
+const cors = require('cors');
+const Database = require('better-sqlite3');
+const crypto = require('crypto');
+const path = require('path');
+const { ethers } = require('ethers');
+const nacl = require('tweetnacl');
+const { Keypair, PublicKey } = require('@solana/web3.js');
+const bs58 = require('bs58');
+require('dotenv').config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware configuration
+app.use(cors());
+app.use(express.json());
+
+
+// ============================================================================
+// SECTION 1: DATABASE INITIALIZATION & SEEDING
+// ============================================================================
+const db = new Database('./nullnet_chain.db');
+db.pragma('journal_mode = WAL');
+
+// Execute schema creation tables
+db.exec(`
+  CREATE TABLE IF NOT EXISTS blocks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    height INTEGER UNIQUE NOT NULL,
+    prev_hash TEXT NOT NULL,
+    hash TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS wallets (
+    address TEXT PRIMARY KEY,
+    balance REAL NOT NULL DEFAULT 1000.0
+  );
+
+  CREATE TABLE IF NOT EXISTS transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    block_id INTEGER,
+    signature TEXT UNIQUE NOT NULL,
+    sender TEXT NOT NULL,
+    recipient TEXT NOT NULL,
+    amount REAL NOT NULL,
+    type TEXT NOT NULL DEFAULT 'TRANSFER',
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (block_id) REFERENCES blocks(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS tokens (
+    mint TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    total_supply REAL NOT NULL,
+    owner TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS token_accounts (
+    account_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mint TEXT NOT NULL,
+    owner TEXT NOT NULL,
+    balance REAL NOT NULL DEFAULT 0.0,
+    UNIQUE(mint, owner),
+    FOREIGN KEY (mint) REFERENCES tokens(mint)
+  );
+
+  CREATE TABLE IF NOT EXISTS program_state (
+    program_id TEXT PRIMARY KEY,
+    state_key TEXT NOT NULL,
+    state_value TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// Seed Genesis Block if chain is empty
+const blockCheck = db.prepare('SELECT COUNT(*) as count FROM blocks').get();
+if (blockCheck.count === 0) {
+  const genesisHash = crypto.createHash('sha256').update('NULLNET_GENESIS_BLOCK').digest('hex');
+  db.prepare(`
+    INSERT INTO blocks (height, prev_hash, hash) VALUES (?, ?, ?)
+  `).run(0, '0x0000000000000000000000000000000000000000000000000000000000000000', genesisHash);
+}
+
+
+// ============================================================================
+// SECTION 2: CORE BLOCKCHAIN FUNCTIONS & HELPERS
+// ============================================================================
+
+/**
+ * Computes cryptographic SHA-256 hash for a new block.
+ */
+function computeBlockHash(height, prevHash, timestamp) {
+  return crypto.createHash('sha256').update(`${height}-${prevHash}-${timestamp}`).digest('hex');
+}
+
+/**
+ * Universal Web3 Signature Verifier (Supports both EVM secp256k1 & LUN Ed25519)
+ */
+function verifyWeb3Signature(message, signature, expectedAddress) {
+  try {
+    if (expectedAddress.startsWith('LUN')) {
+      // Solana-style Ed25519 verification (Strip 'LUN' prefix to get base58 public key)
+      const rawPubkeyBase58 = expectedAddress.slice(3);
+      const pubkeyBytes = new PublicKey(rawPubkeyBase58).toBytes();
+      
+      const messageBytes = new TextEncoder().encode(message);
+      const signatureBytes = bs58.decode(signature);
+      
+      return nacl.sign.detached.verify(messageBytes, signatureBytes, pubkeyBytes);
+    } else {
+      // EVM-style secp256k1 verification (MetaMask / Ethers)
+      const recovered = ethers.verifyMessage(message, signature);
+      return recovered.toLowerCase() === expectedAddress.toLowerCase();
+    }
+  } catch (err) {
+    console.error('Signature verification exception:', err.message);
+    return false;
+  }
+}
+
+
+// ============================================================================
+// SECTION 3: CONSOLE / WEBVIEW (HTML HEAD & BODY SECTIONS)
+// ============================================================================
+
+// --- CONSOLE HEADER SECTION (Styles, Metadata, Web3 Scripts) ---
+const CONSOLE_HEADER = `
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NullNet Chain - Live Console</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.0/ethers.umd.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 40px; }
+        .container { max-width: 800px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        h1 { color: #38bdf8; margin-top: 0; }
+        .card { background: #0f172a; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #334155; }
+        button { background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-right: 5px; }
+        button:hover { background: #0369a1; }
+        pre { background: #090d16; padding: 15px; border-radius: 6px; overflow-x: auto; color: #34d399; }
+    </style>
+</head>
+`;
+
+// --- CONSOLE BODY SECTION (Interactive Webpage View) ---
+const CONSOLE_BODY = `
+<body>
+    <div class="container">
+        <h1>⚡ NullNet Chain Console</h1>
+        <p>Decentralized ledger & payment node running live on AWS EC2.</p>
+        
+        <div class="card">
+            <h3>Wallet Connection & Faucet</h3>
+            <button onclick="connectWallet()">Connect Web3 Wallet</button>
+            <button onclick="requestFaucet()">Request Faucet Airdrop</button>
+            <p><strong>Connected Address:</strong> <span id="walletAddress">Not Connected</span></p>
+            <p><strong>Native Balance:</strong> <span id="walletBalance">0.0</span> COIN</p>
+        </div>
+
+        <div class="card">
+            <h3>Chain Status & Audit Log</h3>
+            <button onclick="fetchChainStatus()">Refresh Metrics</button>
+            <button onclick="fetchRecentTransactions()">View Recent Transactions</button>
+            <pre id="consoleOutput">Click a button to load data...</pre>
+        </div>
+    </div>
+
+    <script>
+        async function connectWallet() {
+            if (window.ethereum) {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const address = accounts[0];
+                document.getElementById('walletAddress').innerText = address;
+                
+                const res = await fetch(\`/api/getBalance?address=\${address}\`);
+                const data = await res.json();
+                document.getElementById('walletBalance').innerText = data.balance;
+            } else {
+                alert('Please install MetaMask or Rabby.');
+            }
+        }
+
+        async function requestFaucet() {
+            const address = document.getElementById('walletAddress').innerText;
+            if (address === 'Not Connected') {
+                alert('Please connect your wallet first!');
+                return;
+            }
+            const res = await fetch('/api/faucet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ address })
+            });
+            const data = await res.json();
+            alert(data.message || 'Faucet success');
+            connectWallet();
+        }
+
+        async function fetchChainStatus() {
+            const res = await fetch('/api/getBlockHeight');
+            const data = await res.json();
+            document.getElementById('consoleOutput').innerText = JSON.stringify(data, null, 2);
+        }
+
+        async function fetchRecentTransactions() {
+            const res = await fetch('/api/getRecentTransactions');
+            const data = await res.json();
+            document.getElementById('consoleOutput').innerText = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+`;
+
+// Serve the combined WebView Console at Root URL
+app.get('/', (req, res) => {
+  res.send(`<!DOCTYPE html><html>\${CONSOLE_HEADER}\${CONSOLE_BODY}</html>`);
+});
+
+
+// ============================================================================
+// SECTION 4: API ENDPOINTS (ROUTES & CONTROLLERS)
+// ============================================================================
+
+// --- 4.1 Account & Balance Endpoints ---
+app.get('/api/getBalance', (req, res) => {
+  const { address } = req.query;
+  if (!address) return res.status(400).json({ error: 'Missing address parameter' });
+
+  let wallet = db.prepare('SELECT balance FROM wallets WHERE address = ?').get(address);
+  if (!wallet) {
+    db.prepare('INSERT INTO wallets (address, balance) VALUES (?, ?)').run(address, 100.0);
+    wallet = { balance: 100.0 };
+  }
+  res.status(200).json({ address, balance: wallet.balance });
+});
+
+app.get('/api/getAccountInfo', (req, res) => {
+  const { address } = req.query;
+  if (!address) return res.status(400).json({ error: 'Missing address parameter' });
+
+  const wallet = db.prepare('SELECT * FROM wallets WHERE address = ?').get(address);
+  const tokenAccounts = db.prepare('SELECT mint, balance FROM token_accounts WHERE owner = ?').all(address);
+
+  res.status(200).json({
+    address,
+    nativeBalance: wallet ? wallet.balance : 0,
+    tokenAccounts: tokenAccounts || []
+  });
+});
+
+// --- 4.2 Token Endpoints (SPL Emulation) ---
+app.get('/api/getTokenAccountsByOwner', (req, res) => {
+  const { address } = req.query;
+  if (!address) return res.status(400).json({ error: 'Missing address parameter' });
+
+  const accounts = db.prepare(`
+    SELECT ta.mint, ta.balance, t.name, t.symbol 
+    FROM token_accounts ta 
+    JOIN tokens t ON ta.mint = t.mint 
+    WHERE ta.owner = ?
+  `).all(address);
+
+  res.status(200).json({ owner: address, accounts });
+});
+
+// --- 4.3 Smart Contract / Program Endpoints ---
+app.get('/api/getProgramAccounts', (req, res) => {
+  const { programId } = req.query;
+  if (!programId) return res.status(400).json({ error: 'Missing programId parameter' });
+
+  const states = db.prepare('SELECT state_key, state_value, updated_at FROM program_state WHERE program_id = ?').all(programId);
+  res.status(200).json({ programId, states });
+});
+
+app.post('/api/invokeSmartContract', (req, res) => {
+  const { programId, action, key, value, signer, signature } = req.body;
+  if (!programId || !action || !signer) {
+    return res.status(400).json({ error: 'Missing required contract parameters' });
+  }
+
+  try {
+    if (signature) {
+      const message = `Invoke ${programId}:${action} with ${key}=${value}`;
+      if (!verifyWeb3Signature(message, signature, signer)) {
+        return res.status(401).json({ error: 'Invalid contract invocation signature' });
+      }
+    }
+
+    if (action === 'setState') {
+      db.prepare(`
+        INSERT INTO program_state (program_id, state_key, state_value, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(program_id, state_key) DO UPDATE SET state_value = ?, updated_at = CURRENT_TIMESTAMP
+      `).run(programId, key, value, value);
+    }
+
+    res.status(200).json({ success: true, message: `Program ${programId} executed action '${action}' successfully.` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- 4.4 Ledger & Block Endpoints ---
+app.get('/api/getLatestBlockhash', (req, res) => {
+  const latestBlock = db.prepare('SELECT height, hash, timestamp FROM blocks ORDER BY height DESC LIMIT 1').get();
+  res.status(200).json({
+    blockhash: latestBlock.hash,
+    height: latestBlock.height,
+    timestamp: latestBlock.timestamp
+  });
+});
+
+app.get('/api/getBlock', (req, res) => {
+  const { height } = req.query;
+  if (height === undefined) return res.status(400).json({ error: 'Missing height parameter' });
+
+  const block = db.prepare('SELECT * FROM blocks WHERE height = ?').get(height);
+  if (!block) return res.status(404).json({ error: 'Block not found' });
+
+  const txs = db.prepare('SELECT signature, sender, recipient, amount, type, timestamp FROM transactions WHERE block_id = ?').all(block.id);
+  res.status(200).json({ ...block, transactions: txs });
+});
+
+app.get('/api/getBlockHeight', (req, res) => {
+  const result = db.prepare('SELECT MAX(height) as height FROM blocks').get();
+  res.status(200).json({ height: result ? result.height : 0 });
+});
+
+app.get('/api/getSignaturesForAddress', (req, res) => {
+  const { address } = req.query;
+  if (!address) return res.status(400).json({ error: 'Missing address parameter' });
+
+  const txs = db.prepare(`
+    SELECT signature, sender, recipient, amount, type, timestamp 
+    FROM transactions 
+    WHERE sender = ? OR recipient = ? 
+    ORDER BY id DESC LIMIT 50
+  `).all(address, address);
+
+  res.status(200).json({ address, transactions: txs });
+});
+
+// --- 4.5 Transaction & Execution Endpoints ---
+app.post('/api/simulateTransaction', (req, res) => {
+  const { sender, recipient, amount } = req.body;
+  if (!sender || !recipient || amount === undefined) {
+    return res.status(400).json({ error: 'Missing transfer parameters' });
+  }
+
+  const senderWallet = db.prepare('SELECT balance FROM wallets WHERE address = ?').get(sender);
+  const currentBalance = senderWallet ? senderWallet.balance : 0;
+
+  if (currentBalance < amount) {
+    return res.status(200).json({ success: false, error: 'Insufficient funds for simulation.' });
+  }
+
+  res.status(200).json({ success: true, message: 'Simulation passed successfully.' });
+});
+
+app.post('/api/sendTransaction', (req, res) => {
+  const { sender, recipient, amount, signature } = req.body;
+  if (!sender || !recipient || amount === undefined || !signature) {
+    return res.status(400).json({ error: 'Missing required transaction fields or signature' });
+  }
+
+  try {
+    const messagePayload = `NullNet Transfer: Send ${amount} to ${recipient}`;
+    if (!verifyWeb3Signature(messagePayload, signature, sender)) {
+      return res.status(401).json({ error: 'Cryptographic signature verification failed.' });
+    }
+
+    const existingTx = db.prepare('SELECT id FROM transactions WHERE signature = ?').get(signature);
+    if (existingTx) {
+      return res.status(400).json({ error: 'Transaction signature already processed (Replay attack prevented).' });
+    }
+
+    const transferTx = db.transaction(() => {
+      let senderW = db.prepare('SELECT balance FROM wallets WHERE address = ?').get(sender);
+      if (!senderW || senderW.balance < amount) {
+        throw new Error('Insufficient balance in sender account.');
+      }
+
+      let recipientW = db.prepare('SELECT balance FROM wallets WHERE address = ?').get(recipient);
+      if (!recipientW) {
+        db.prepare('INSERT INTO wallets (address, balance) VALUES (?, ?)').run(recipient, 0.0);
+      }
+
+      db.prepare('UPDATE wallets SET balance = balance - ? WHERE address = ?').run(amount, sender);
+      db.prepare('UPDATE wallets SET balance = balance + ? WHERE address = ?').run(amount, recipient);
+
+      const latestBlock = db.prepare('SELECT * FROM blocks ORDER BY height DESC LIMIT 1').get();
+      const newHeight = latestBlock.height + 1;
+      const timestamp = new Date().toISOString();
+      const newHash = computeBlockHash(newHeight, latestBlock.hash, timestamp);
+
+      const blockResult = db.prepare(`
+        INSERT INTO blocks (height, prev_hash, hash, timestamp) VALUES (?, ?, ?, ?)
+      `).run(newHeight, latestBlock.hash, newHash, timestamp);
+
+      const blockId = blockResult.lastInsertRowid;
+
+      db.prepare(`
+        INSERT INTO transactions (block_id, signature, sender, recipient, amount, type, timestamp)
+        VALUES (?, ?, ?, ?, ?, 'TRANSFER', ?)
+      `).run(blockId, signature, sender, recipient, amount, timestamp);
+
+      return { blockHeight: newHeight, blockHash: newHash, signature };
+    });
+
+    const result = transferTx();
+    res.status(200).json({ success: true, ...result });
+
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// --- 4.6 Exchange & Utility Endpoints (Dual EVM & Solana-Style LUN Wallets) ---
+app.post('/api/faucet', (req, res) => {
+  const { address, type } = req.body; // type can be 'LUN' or 'EVM'
+  
+  try {
+    let targetAddress = address;
+    let walletDetails = {};
+    const airdropAmount = 250.0;
+
+    if (type === 'SOL' || type === 'LUN' || !address) {
+      // Generate Solana-style keypair with LUN prefix
+      const solanaKeypair = Keypair.generate();
+      const rawPubkey = solanaKeypair.publicKey.toBase58();
+      targetAddress = `LUN${rawPubkey}`;
+      
+      walletDetails = {
+        address: targetAddress,
+        privateKey: bs58.encode(solanaKeypair.secretKey),
+        type: 'LUN_SOLANA'
+      };
+    } else {
+      // EVM style (MetaMask) passed explicitly
+      walletDetails = {
+        address: targetAddress,
+        type: 'EVM'
+      };
+    }
+
+    // Insert or update balance in SQLite wallets table
+    db.prepare(`
+      INSERT INTO wallets (address, balance) VALUES (?, ?)
+      ON CONFLICT(address) DO UPDATE SET balance = balance + ?
+    `).run(targetAddress, airdropAmount, airdropAmount);
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully airdropped ${airdropAmount} COIN to ${targetAddress}.`,
+      wallet: walletDetails,
+      rpcProviders: {
+        solana: process.env.SOLANA_RPC_URL || 'Not Configured',
+        evm: process.env.EVM_RPC_URL || 'Not Configured'
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/getRecentTransactions', (req, res) => {
+  const limit = parseInt(req.query.limit) || 20;
+  try {
+    const txs = db.prepare(`
+      SELECT t.signature, t.sender, t.recipient, t.amount, t.type, t.timestamp, b.height as blockHeight
+      FROM transactions t
+      JOIN blocks b ON t.block_id = b.id
+      ORDER BY t.id DESC
+      LIMIT ?
+    `).all(limit);
+
+    res.status(200).json({ success: true, transactions: txs });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// System Health Check Endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'online', network: 'NullNet Chain Backend is live.' });
+});
+
+
+// ============================================================================
+// SECTION 5: SERVER LISTENER STARTUP
+// ============================================================================
+app.listen(PORT, () => {
+  console.log(`[NullNet Node] Chain backend running on port ${PORT}`);
+});
