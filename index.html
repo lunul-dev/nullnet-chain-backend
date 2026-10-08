@@ -75,8 +75,9 @@
         p.desc { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6; }
 
         label { display: block; margin-top: 14px; font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.9px; }
-        input { width: 100%; padding: 13px 16px; margin-top: 6px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; box-sizing: border-box; font-size: 13px; font-family: monospace; transition: all 0.2s; }
-        input:focus { outline: none; border-color: var(--accent-purple); box-shadow: 0 0 12px rgba(147, 51, 234, 0.25); }
+        input, select { width: 100%; padding: 13px 16px; margin-top: 6px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; box-sizing: border-box; font-size: 13px; font-family: monospace; transition: all 0.2s; }
+        input:focus, select:focus { outline: none; border-color: var(--accent-purple); box-shadow: 0 0 12px rgba(147, 51, 234, 0.25); }
+        select option { background: var(--bg-input); color: white; }
 
         button { background: linear-gradient(135deg, var(--accent-purple), var(--accent-indigo)); color: white; border: none; padding: 13px 18px; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; width: 100%; margin-top: 16px; box-shadow: 0 4px 18px rgba(147, 51, 234, 0.35); }
         button:hover { opacity: 0.95; transform: translateY(-1px); box-shadow: 0 6px 22px rgba(147, 51, 234, 0.45); }
@@ -165,6 +166,11 @@
                 <h3>💸 Universal Transfer</h3>
                 <p class="desc">Execute cryptographically signed transfers across network endpoints.</p>
                 
+                <label>Select Asset:</label>
+                <select id="transferAssetSelect" onchange="updateTransferMaxLabel()">
+                    <option value="LUN">LUN (Native)</option>
+                </select>
+
                 <label>Sender Address:</label>
                 <input type="text" id="txSender" placeholder="LUN...">
                 
@@ -174,7 +180,7 @@
                 <label>Recipient Destination:</label>
                 <input type="text" id="txRecipient" placeholder="Recipient LUN or 0x address">
                 
-                <label>Transfer Amount:</label>
+                <label id="txAmountLabel">Transfer Amount:</label>
                 <input type="number" id="txAmount" placeholder="10.0">
                 
                 <button onclick="sendTransaction()">Sign & Broadcast Transfer</button>
@@ -261,6 +267,7 @@
 
         let currentWallet = null;
         let userTokens = [];
+        let nativeBalanceVal = 0.00;
 
         async function checkHealth() {
             try {
@@ -321,6 +328,7 @@
             try {
                 const res = await fetch(`/api/getBalance?address=${encodeURIComponent(currentWallet.address)}`);
                 const data = await res.json();
+                nativeBalanceVal = data.balance;
                 displayWalletInfo(currentWallet, data.balance);
             } catch (err) {
                 console.error('Failed to fetch balance:', err);
@@ -328,6 +336,7 @@
         }
 
         function displayWalletInfo(wallet, balance = 0.00) {
+            nativeBalanceVal = balance;
             document.getElementById('walletDisplay').style.display = 'block';
             document.getElementById('walletAddressShort').innerText = wallet.address.slice(0, 6) + '...' + wallet.address.slice(-4);
             document.getElementById('nativeBalance').innerHTML = `${balance.toFixed(2)} <span style="font-size:14px; color:var(--text-muted);">LUN</span>`;
@@ -336,6 +345,7 @@
             document.getElementById('txSender').value = wallet.address;
             document.getElementById('txPrivateKey').value = wallet.privateKey;
             updateTokenPortfolio();
+            updateAssetDropdown();
         }
 
         async function requestFaucet() {
@@ -360,6 +370,7 @@
             const recipient = document.getElementById('txRecipient').value.trim();
             const amount = parseFloat(document.getElementById('txAmount').value);
             const privateKeyStr = document.getElementById('txPrivateKey').value.trim();
+            const asset = document.getElementById('transferAssetSelect').value;
 
             if (!sender || !recipient || isNaN(amount) || !privateKeyStr) {
                 alert('Please fill out all transaction fields correctly.');
@@ -367,7 +378,7 @@
             }
 
             try {
-                const messagePayload = `NullNet Transfer: Send ${amount} to ${recipient}`;
+                const messagePayload = `NullNet Transfer: Send ${amount} ${asset} to ${recipient}`;
                 const secretKeyBytes = Base58.decode(privateKeyStr);
                 const messageBytes = new TextEncoder().encode(messagePayload);
                 const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
@@ -376,7 +387,7 @@
                 const res = await fetch('/api/sendTransaction', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sender, recipient, amount, signature })
+                    body: JSON.stringify({ sender, recipient, amount, asset, signature })
                 });
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
@@ -420,6 +431,7 @@
                     userTokens.push({ symbol, supply });
                 }
                 updateTokenPortfolio();
+                updateAssetDropdown();
                 fetchRecentTransactions();
             } catch (err) {
                 document.getElementById('output').innerText = 'Token Deploy Error: ' + err.message;
@@ -435,6 +447,27 @@
             listEl.innerHTML = html;
         }
 
+        function updateAssetDropdown() {
+            const selectEl = document.getElementById('transferAssetSelect');
+            let html = `<option value="LUN">LUN (Native) - Balance: ${nativeBalanceVal.toFixed(2)}</option>`;
+            userTokens.forEach(t => {
+                html += `<option value="${t.symbol}">${t.symbol} (SPL) - Balance: ${t.supply.toLocaleString()}</option>`;
+            });
+            selectEl.innerHTML = html;
+            updateTransferMaxLabel();
+        }
+
+        function updateTransferMaxLabel() {
+            const selectEl = document.getElementById('transferAssetSelect');
+            const asset = selectEl.value;
+            let bal = nativeBalanceVal;
+            if (asset !== 'LUN') {
+                const found = userTokens.find(t => t.symbol === asset);
+                if (found) bal = found.supply;
+            }
+            document.getElementById('txAmountLabel').innerText = `Transfer Amount (Available: ${bal.toLocaleString()} ${asset}):`;
+        }
+
         async function fetchRecentTransactions() {
             const feedEl = document.getElementById('liveTxFeed');
             if (!currentWallet) {
@@ -447,7 +480,6 @@
                 const data = await res.json();
                 
                 if (data.success && data.transactions && data.transactions.length > 0) {
-                    // Filter transactions specifically for the active wallet address
                     const walletTxs = data.transactions.filter(tx => 
                         tx.sender === currentWallet.address || tx.recipient === currentWallet.address
                     );
@@ -459,9 +491,10 @@
                             const badgeClass = isIncoming ? 'tx-badge in' : 'tx-badge out';
                             const badgeText = isIncoming ? 'IN' : 'OUT';
                             const peer = isIncoming ? `From ${tx.sender.slice(0,6)}...` : `To ${tx.recipient.slice(0,6)}...`;
+                            const assetLabel = tx.asset || 'LUN';
 
                             html += `<div class="tx-row">
-                                <div><span class="${badgeClass}">${badgeText}</span> <b>${tx.amount}</b> LUN (${peer})</div>
+                                <div><span class="${badgeClass}">${badgeText}</span> <b>${tx.amount}</b> ${assetLabel} (${peer})</div>
                                 <div style="color:var(--text-muted); font-size:10px;">${new Date(tx.timestamp).toLocaleTimeString()}</div>
                             </div>`;
                         });
