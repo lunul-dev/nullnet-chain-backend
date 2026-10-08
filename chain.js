@@ -11,7 +11,7 @@ const crypto = require('crypto');
 const path = require('path');
 const { ethers } = require('ethers');
 const nacl = require('tweetnacl');
-const { Keypair, PublicKey } = require('@solana/web3.js');
+const { Keypair } = require('@solana/web3.js');
 const bs58 = require('bs58');
 require('dotenv').config();
 
@@ -100,7 +100,7 @@ function verifyWeb3Signature(message, signature, expectedAddress) {
   try {
     if (expectedAddress.startsWith('LUN')) {
       const rawPubkeyBase58 = expectedAddress.slice(3);
-      const pubkeyBytes = new PublicKey(rawPubkeyBase58).toBytes();
+      const pubkeyBytes = bs58.decode(rawPubkeyBase58); // Direct bs58 decode for public key bytes
       const messageBytes = new TextEncoder().encode(message);
       const signatureBytes = bs58.decode(signature);
       return nacl.sign.detached.verify(messageBytes, signatureBytes, pubkeyBytes);
@@ -196,6 +196,7 @@ app.post('/api/sendTransaction', (req, res) => {
     const messagePayload = `NullNet Transfer: Send ${parsedAmount} to ${recipient}`;
     
     if (!verifyWeb3Signature(messagePayload, signature, sender)) {
+      console.log('[Error] Signature verification failed for payload:', messagePayload);
       return res.status(401).json({ error: 'Cryptographic signature verification failed.' });
     }
 
