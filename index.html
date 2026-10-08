@@ -118,40 +118,42 @@
                 <span id="statusText">Connected</span>
             </div>
         </header>
-<!-- NETWORK VITALS & TELEMETRY -->
-            <div class="card">
-                <h3>⚡ Network Telemetry & Vitals</h3>
-                <p class="desc">Real-time network consensus performance and protocol metrics.</p>
-                
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
-                    <div class="portfolio-box" style="margin-top:0; padding:12px;">
-                        <div style="font-size:10px; color:var(--text-muted);">ACTIVE NODES</div>
-                        <div id="statNodes" style="font-size:20px; font-weight:700; color:var(--accent-glow); font-family:monospace;">--</div>
-                    </div>
-                    <div class="portfolio-box" style="margin-top:0; padding:12px;">
-                        <div style="font-size:10px; color:var(--text-muted);">TOTAL WALLETS</div>
-                        <div id="statWallets" style="font-size:20px; font-weight:700; color:#fff; font-family:monospace;">0</div>
-                    </div>
-                </div>
 
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="portfolio-box" style="margin-top:0; padding:12px;">
-                        <div style="font-size:10px; color:var(--text-muted);">LIVE BLOCK HEIGHT</div>
-                        <div id="statHeight" style="font-size:20px; font-weight:700; color:var(--success); font-family:monospace;">0</div>
-                    </div>
-                    <div class="portfolio-box" style="margin-top:0; padding:12px;">
-                        <div style="font-size:10px; color:var(--text-muted);">FEES PAID (LUN)</div>
-                        <div id="statFees" style="font-size:20px; font-weight:700; color:#f59e0b; font-family:monospace;">0.0000</div>
-                    </div>
+        <!-- NETWORK VITALS & TELEMETRY -->
+        <div class="card" style="margin-bottom: 24px;">
+            <h3>⚡ Network Telemetry & Vitals</h3>
+            <p class="desc">Real-time network consensus performance and protocol metrics.</p>
+            
+            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                <div class="portfolio-box" style="margin-top:0; padding:12px;">
+                    <div style="font-size:10px; color:var(--text-muted);">ACTIVE NODES</div>
+                    <div id="statNodes" style="font-size:20px; font-weight:700; color:var(--accent-glow); font-family:monospace;">--</div>
                 </div>
-
-                <div class="portfolio-box" style="margin-top: 12px; padding: 12px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:10px; color:var(--text-muted);">TOTAL TRANSACTIONS PROCESSED</span>
-                        <span id="statTxs" style="font-size:16px; font-weight:700; color:var(--accent-glow); font-family:monospace;">0</span>
-                    </div>
+                <div class="portfolio-box" style="margin-top:0; padding:12px;">
+                    <div style="font-size:10px; color:var(--text-muted);">TOTAL WALLETS</div>
+                    <div id="statWallets" style="font-size:20px; font-weight:700; color:#fff; font-family:monospace;">0</div>
                 </div>
             </div>
+
+            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="portfolio-box" style="margin-top:0; padding:12px;">
+                    <div style="font-size:10px; color:var(--text-muted);">LIVE BLOCK HEIGHT</div>
+                    <div id="statHeight" style="font-size:20px; font-weight:700; color:var(--success); font-family:monospace;">0</div>
+                </div>
+                <div class="portfolio-box" style="margin-top:0; padding:12px;">
+                    <div style="font-size:10px; color:var(--text-muted);">FEES PAID (LUN)</div>
+                    <div id="statFees" style="font-size:20px; font-weight:700; color:#f59e0b; font-family:monospace;">0.0000</div>
+                </div>
+            </div>
+
+            <div class="portfolio-box" style="margin-top: 12px; padding: 12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:10px; color:var(--text-muted);">TOTAL TRANSACTIONS PROCESSED</span>
+                    <span id="statTxs" style="font-size:16px; font-weight:700; color:var(--accent-glow); font-family:monospace;">0</span>
+                </div>
+            </div>
+        </div>
+
         <div class="grid">
             <!-- WALLET & ASSET PORTFOLIO -->
             <div class="card">
@@ -173,13 +175,15 @@
                     <div class="portfolio-box">
                         <div class="balance-header">
                             <span>NATIVE BALANCE</span>
-                            <span id="walletAddressShort" style="color:var(--accent-glow);">--</span>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span id="walletAddressShort" style="color:var(--accent-glow);">--</span>
+                                <button class="secondary" onclick="refreshBalance()" style="margin-top:0; padding:2px 6px; font-size:10px; width:auto;">Refresh</button>
+                            </div>
                         </div>
                         <div class="balance-amount" id="nativeBalance">0.00 <span style="font-size:14px; color:var(--text-muted);">LUN</span></div>
                         
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
                             <span style="font-size:11px; color:var(--text-muted); font-weight:600;">TOKEN HOLDINGS</span>
-                            <button class="secondary" onclick="refreshBalance()" style="margin-top:0; padding:5px 10px; font-size:11px; width:auto;">Refresh</button>
                         </div>
                         <div class="token-list" id="tokenHoldingsList">
                             <div class="token-item">
@@ -307,7 +311,7 @@
                 const res = await fetch('/api/health');
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
-                document.getElementById('statusText').innerText = 'Online';
+                document.getElementById('statusText').innerText = 'Connected';
             } catch (err) {
                 document.getElementById('output').innerText = 'Error: ' + err.message;
                 document.getElementById('statusText').innerText = 'Offline';
@@ -364,7 +368,8 @@
                 const res = await fetch(`/api/getBalance?address=${encodeURIComponent(currentWallet.address)}`);
                 const data = await res.json();
                 nativeBalanceVal = data.balance;
-                displayWalletInfo(currentWallet, data.balance);
+                document.getElementById('nativeBalance').innerHTML = `${nativeBalanceVal.toFixed(2)} <span style="font-size:14px; color:var(--text-muted);">LUN</span>`;
+                updateTransferMaxLabel();
             } catch (err) {
                 console.error('Failed to fetch balance:', err);
             }
@@ -429,7 +434,8 @@
 
             try {
                 const parsedAmount = parseFloat(amount);
-                const messagePayload = `NullNet Transfer: Send ${parsedAmount} to ${recipient}`;
+                const assetSymbol = asset || 'LUN';
+                const messagePayload = `NullNet Transfer: Send ${parsedAmount} ${assetSymbol} to ${recipient}`;
 
                 const secretKeyBytes = Base58.decode(privateKeyStr);
                 const messageBytes = new TextEncoder().encode(messagePayload);
@@ -519,25 +525,23 @@
             }
             document.getElementById('txAmountLabel').innerText = `Transfer Amount (Available: ${bal.toLocaleString()} ${asset}):`;
         }
-async function fetchNetworkVitals() {
-    try {
-        const res = await fetch('/api/networkVitals');
-        const data = await res.json();
-        if (data.success) {
-            document.getElementById('statNodes').innerText = data.activeNodes.toLocaleString();
-            document.getElementById('statWallets').innerText = data.totalWallets.toLocaleString();
-            document.getElementById('statHeight').innerText = data.blockHeight.toLocaleString();
-            document.getElementById('statFees').innerText = data.totalFeesPaid.toFixed(4) + ' LUN';
-            document.getElementById('statTxs').innerText = data.totalTransactions.toLocaleString();
-        }
-    } catch (err) {
-        console.error('Failed to load network vitals:', err);
-    }
-}
 
-// Poll vitals every second
-setInterval(fetchNetworkVitals, 1000);
-fetchNetworkVitals();
+        async function fetchNetworkVitals() {
+            try {
+                const res = await fetch('/api/networkVitals');
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('statNodes').innerText = data.activeNodes.toLocaleString();
+                    document.getElementById('statWallets').innerText = data.totalWallets.toLocaleString();
+                    document.getElementById('statHeight').innerText = data.blockHeight.toLocaleString();
+                    document.getElementById('statFees').innerText = data.totalFeesPaid.toFixed(4) + ' LUN';
+                    document.getElementById('statTxs').innerText = data.totalTransactions.toLocaleString();
+                }
+            } catch (err) {
+                console.error('Failed to load network vitals:', err);
+            }
+        }
+
         async function fetchRecentTransactions() {
             const feedEl = document.getElementById('liveTxFeed');
             if (!currentWallet) {
@@ -580,6 +584,15 @@ fetchNetworkVitals();
                 feedEl.innerHTML = '<div class="tx-row"><span>Error loading wallet transactions.</span></div>';
             }
         }
+
+        // Automated polling loops (every 2 seconds for wallet & transactions, every 1 second for network stats)
+        setInterval(fetchNetworkVitals, 1000);
+        setInterval(() => {
+            if (currentWallet) {
+                refreshBalance();
+                fetchRecentTransactions();
+            }
+        }, 2000);
 
         checkHealth();
     </script>
