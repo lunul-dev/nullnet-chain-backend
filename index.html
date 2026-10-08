@@ -3,85 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NullNet Chain Wallet & Console</title>
+    <title>NullNet Chain | Lunul DApp Console</title>
     <!-- Include TweetNaCl and bs58 via CDN for browser-side Ed25519 signing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tweetnacl/1.0.3/nacl-fast.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bs58@5.0.0/dist/index.umd.min.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; margin: 0; }
-        .container { max-width: 650px; margin: 0 auto; background: #1e293b; padding: 25px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-        h1 { color: #38bdf8; margin-top: 0; font-size: 24px; display: flex; justify-content: space-between; align-items: center; }
-        .badge { font-size: 12px; background: #0284c7; padding: 4px 10px; border-radius: 12px; }
-        .card { background: #0f172a; padding: 18px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #334155; }
-        h3 { margin-top: 0; color: #38bdf8; font-size: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px; }
-        label { display: block; margin-top: 10px; font-size: 13px; color: #94a3b8; }
-        input { width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: white; box-sizing: border-box; font-size: 14px; }
-        button { background: #0284c7; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; font-size: 14px; transition: background 0.2s; }
-        button:hover { background: #0369a1; }
-        button.secondary { background: #334155; }
-        button.secondary:hover { background: #475569; }
-        pre { background: #090d16; padding: 12px; border-radius: 6px; color: #34d399; overflow-x: auto; font-size: 12px; max-height: 200px; margin-top: 10px; }
-        .wallet-box { background: #1e293b; padding: 12px; border-radius: 6px; margin-top: 10px; font-family: monospace; font-size: 13px; word-break: break-all; border: 1px dashed #38bdf8; }
-        .row { display: flex; gap: 10px; }
-        .row > * { flex: 1; }
+        :root {
+            --bg-main: #090d16;
+            --bg-card: #111827;
+            --bg-input: #1f2937;
+            --border-color: #374151;
+            --accent-blue: #38bdf8;
+            --accent-purple: #818cf8;
+            --accent-green: #34d399;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-main); color: var(--text-main); padding: 30px; margin: 0; }
+        .container { max-width: 800px; margin: 0 auto; }
+        
+        /* Header */
+        header { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 20px 25px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        h1 { color: var(--accent-blue); margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px; }
+        .badge { font-size: 11px; background: rgba(56, 189, 248, 0.15); color: var(--accent-blue); border: 1px solid var(--accent-blue); padding: 4px 10px; border-radius: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* Grid Layout */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media(max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        
+        .card { background: var(--bg-card); padding: 22px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .card.full { grid-column: span 2; }
+        
+        h3 { margin-top: 0; color: var(--accent-blue); font-size: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        p.desc { font-size: 12px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.4; }
+        
+        label { display: block; margin-top: 12px; font-size: 12px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+        input, textarea { width: 100%; padding: 11px 14px; margin-top: 5px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; box-sizing: border-box; font-size: 13px; font-family: monospace; }
+        input:focus, textarea:focus { outline: none; border-color: var(--accent-blue); }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 12px; }
+        button { background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; transition: opacity 0.2s; width: 100%; }
+        button:hover { opacity: 0.9; }
+        button.secondary { background: #374151; }
+        button.secondary:hover { background: #4b5563; }
+        button.purple { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+
+        pre { background: #030712; padding: 15px; border-radius: 8px; color: var(--accent-green); overflow-x: auto; font-size: 12px; border: 1px solid var(--border-color); margin-top: 15px; max-height: 220px; }
+        .wallet-box { background: #030712; padding: 12px; border-radius: 8px; margin-top: 12px; font-family: monospace; font-size: 12px; word-break: break-all; border: 1px dashed var(--accent-blue); color: var(--accent-blue); }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>⚡ NullNet Chain <span class="badge" id="status">Connecting...</span></h1>
+        <!-- HEADER -->
+        <header>
+            <h1>⚡ Lunul NullNet Console</h1>
+            <span class="badge" id="status">Connecting...</span>
+        </header>
 
-        <!-- SECTION 1: WALLET & FAUCET -->
-        <div class="card">
-            <h3>🔑 LUN Wallet & Faucet</h3>
-            <p style="font-size: 13px; color: #94a3b8;">Generate a Solana-style Ed25519 wallet prefixed with LUN and load test coins.</p>
-            <button onclick="generateWallet()">Generate New LUN Wallet</button>
-            <div id="walletDisplay" style="display:none;">
-                <div class="wallet-box" id="walletDetailsBox"></div>
-                <button class="secondary" onclick="requestFaucet()">Claim 250 Faucet Coins</button>
-            </div>
-        </div>
+        <div class="grid">
+            <!-- SECTION 1: WALLET MANAGEMENT (Generate & Restore) -->
+            <div class="card">
+                <h3>🔑 Wallet Management</h3>
+                <p class="desc">Generate a fresh Ed25519 LUN node wallet or restore an existing one using your private key.</p>
+                
+                <button onclick="generateWallet()">Generate New Wallet</button>
+                
+                <div style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                    <label>Restore via Private Key (Base58):</label>
+                    <input type="password" id="importPrivateKey" placeholder="Paste base58 secret key...">
+                    <button class="secondary" onclick="restoreWallet()">Restore Wallet</button>
+                </div>
 
-        <!-- SECTION 2: SEND TRANSACTION -->
-        <div class="card">
-            <h3>💸 Send NullNet Transfer</h3>
-            <label>Sender LUN Address:</label>
-            <input type="text" id="txSender" placeholder="LUN...">
-            
-            <label>Private Key (Base58 for signing):</label>
-            <input type="password" id="txPrivateKey" placeholder="Paste private key here">
-            
-            <label>Recipient Address:</label>
-            <input type="text" id="txRecipient" placeholder="Recipient LUN or EVM address">
-            
-            <div class="row">
-                <div>
-                    <label>Amount (COIN):</label>
-                    <input type="number" id="txAmount" placeholder="10.0">
+                <div id="walletDisplay" style="display:none;">
+                    <div class="wallet-box" id="walletDetailsBox"></div>
+                    <button class="purple" style="margin-top: 10px;" onclick="requestFaucet()">Claim 250 Faucet Test Coins</button>
                 </div>
             </div>
-            <button onclick="sendTransaction()">Sign & Broadcast Transfer</button>
-        </div>
 
-        <!-- SECTION 3: SPL TOKEN CREATOR -->
-        <div class="card">
-            <h3>🪙 Create Basic SPL Token</h3>
-            <p style="font-size: 13px; color: #94a3b8;">Deploy a custom token program state onto your node ledger.</p>
-            <label>Token Program ID / Name:</label>
-            <input type="text" id="tokenProgramId" value="TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">
-            <label>Token Symbol:</label>
-            <input type="text" id="tokenSymbol" value="NULL-MEME">
-            <button onclick="createSplToken()">Deploy Token State</button>
-        </div>
-
-        <!-- SECTION 4: NODE METRICS & LOGS -->
-        <div class="card">
-            <h3>📊 Node Console & Audit Logs</h3>
-            <div class="row">
-                <button class="secondary" onclick="checkHealth()">Health</button>
-                <button class="secondary" onclick="fetchBlockHeight()">Block Height</button>
-                <button class="secondary" onclick="fetchRecentTransactions()">Recent Txs</button>
+            <!-- SECTION 2: SEND TRANSACTION -->
+            <div class="card">
+                <h3>💸 Universal Transfer</h3>
+                <p class="desc">Broadcast cryptographically signed transfers across LUN and EVM target formats.</p>
+                
+                <label>Sender LUN Address:</label>
+                <input type="text" id="txSender" placeholder="LUN...">
+                
+                <label>Signer Private Key:</label>
+                <input type="password" id="txPrivateKey" placeholder="Base58 secret key">
+                
+                <label>Recipient Address:</label>
+                <input type="text" id="txRecipient" placeholder="Recipient LUN or 0x address">
+                
+                <label>Amount (COIN):</label>
+                <input type="number" id="txAmount" placeholder="10.0">
+                
+                <button onclick="sendTransaction()">Sign & Broadcast</button>
             </div>
-            <pre id="output">Click a button above to inspect node state...</pre>
+
+            <!-- SECTION 3: ADVANCED SPL TOKEN CREATOR -->
+            <div class="card">
+                <h3>🪙 SPL Token Creator</h3>
+                <p class="desc">Deploy custom token state and allocate initial total supplies onto the ledger state.</p>
+                
+                <label>Token Program ID:</label>
+                <input type="text" id="tokenProgramId" value="TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">
+                
+                <label>Token Symbol:</label>
+                <input type="text" id="tokenSymbol" value="LUN-MEME">
+                
+                <label>Initial Supply Amount:</label>
+                <input type="number" id="tokenSupply" value="1000000">
+                
+                <button class="purple" onclick="createSplToken()">Mint & Deploy Token</button>
+            </div>
+
+            <!-- SECTION 4: NODE METRICS & AUDIT CONSOLE -->
+            <div class="card">
+                <h3>📊 Node Audit & Telemetry</h3>
+                <p class="desc">Inspect validator health, block heights, and live transaction pool logs.</p>
+                
+                <div class="btn-group">
+                    <button class="secondary" onclick="checkHealth()">Health</button>
+                    <button class="secondary" onclick="fetchBlockHeight()">Height</button>
+                    <button class="secondary" onclick="fetchRecentTransactions()">Txs</button>
+                </div>
+                
+                <pre id="output">Click an audit option above to inspect node state...</pre>
+            </div>
         </div>
     </div>
 
@@ -96,11 +144,14 @@
                 const statusBadge = document.getElementById('status');
                 statusBadge.innerText = 'Online';
                 statusBadge.style.color = '#34d399';
+                statusBadge.style.borderColor = '#34d399';
+                statusBadge.style.background = 'rgba(52, 211, 153, 0.15)';
             } catch (err) {
                 document.getElementById('output').innerText = 'Error: ' + err.message;
                 const statusBadge = document.getElementById('status');
                 statusBadge.innerText = 'Offline';
                 statusBadge.style.color = '#f43f5e';
+                statusBadge.style.borderColor = '#f43f5e';
             }
         }
 
@@ -114,23 +165,46 @@
                 const data = await res.json();
                 if (data.success) {
                     currentWallet = data.wallet;
-                    document.getElementById('walletDisplay').style.display = 'block';
-                    document.getElementById('walletDetailsBox').innerHTML = `
-                        <strong>Address:</strong> ${data.wallet.address}<br>
-                        <strong>Private Key (Save this!):</strong> <span style="color:#f43f5e;">${data.wallet.privateKey}</span><br>
-                        <strong>Initial Airdrop:</strong> ${data.wallet.airdrop} COIN
-                    `;
-                    document.getElementById('txSender').value = data.wallet.address;
-                    document.getElementById('txPrivateKey').value = data.wallet.privateKey;
-                    document.getElementById('output').innerText = "Wallet generated and funded successfully!";
+                    displayWalletInfo(data.wallet);
+                    document.getElementById('output').innerText = "Wallet generated successfully!";
                 }
             } catch (err) {
                 alert('Wallet generation failed: ' + err.message);
             }
         }
 
+        function restoreWallet() {
+            const pk = document.getElementById('importPrivateKey').value.trim();
+            if (!pk) return alert('Please enter a valid base58 private key.');
+            try {
+                const secretKeyBytes = bs58.decode(pk);
+                if (secretKeyBytes.length !== 64 && secretKeyBytes.length !== 32) {
+                    throw new Error('Invalid Ed25519 secret key length.');
+                }
+                // Derive public key & address format matching server logic
+                const keypair = nacl.sign.keyPair.fromSeed(secretKeyBytes.length === 64 ? secretKeyBytes.slice(0, 32) : secretKeyBytes);
+                const address = 'LUN' + bs58.encode(keypair.publicKey);
+                
+                currentWallet = { address, privateKey: pk };
+                displayWalletInfo(currentWallet);
+                document.getElementById('output').innerText = "Wallet restored successfully from private key!";
+            } catch (err) {
+                alert('Failed to restore wallet: ' + err.message);
+            }
+        }
+
+        function displayWalletInfo(wallet) {
+            document.getElementById('walletDisplay').style.display = 'block';
+            document.getElementById('walletDetailsBox').innerHTML = `
+                <strong>Address:</strong> ${wallet.address}<br>
+                <strong>Private Key:</strong> <span style="color:#f43f5e;">${wallet.privateKey}</span>
+            `;
+            document.getElementById('txSender').value = wallet.address;
+            document.getElementById('txPrivateKey').value = wallet.privateKey;
+        }
+
         async function requestFaucet() {
-            if (!currentWallet) return alert('Generate a wallet first!');
+            if (!currentWallet) return alert('Generate or restore a wallet first!');
             try {
                 const res = await fetch('/api/faucet', {
                     method: 'POST',
@@ -157,7 +231,6 @@
 
             try {
                 const messagePayload = `NullNet Transfer: Send ${amount} to ${recipient}`;
-                
                 const secretKeyBytes = bs58.decode(privateKeyStr);
                 const messageBytes = new TextEncoder().encode(messagePayload);
                 const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
@@ -178,16 +251,16 @@
         async function createSplToken() {
             const programId = document.getElementById('tokenProgramId').value.trim();
             const symbol = document.getElementById('tokenSymbol').value.trim();
+            const supply = parseFloat(document.getElementById('tokenSupply').value);
+
             if (!currentWallet) {
-                alert('Please generate a wallet first to act as the signer.');
+                alert('Please generate or restore a wallet first to act as the signer.');
                 return;
             }
 
             try {
-                const action = 'setState';
-                const key = 'symbol';
-                const value = symbol;
-                const message = `Invoke ${programId}:${action} with ${key}=${value}`;
+                const action = 'deployToken';
+                const message = `Invoke ${programId}:${action} Symbol:${symbol} Supply:${supply}`;
 
                 const secretKeyBytes = bs58.decode(currentWallet.privateKey);
                 const messageBytes = new TextEncoder().encode(message);
@@ -197,7 +270,7 @@
                 const res = await fetch('/api/invokeSmartContract', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ programId, action, key, value, signer: currentWallet.address, signature })
+                    body: JSON.stringify({ programId, action, symbol, supply, signer: currentWallet.address, signature })
                 });
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
