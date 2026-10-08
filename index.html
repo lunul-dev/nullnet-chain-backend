@@ -78,8 +78,12 @@
         .token-symbol { font-weight: 600; color: var(--accent-glow); }
 
         .address-pill { background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px; font-family: monospace; font-size: 11px; word-break: break-all; color: var(--text-muted); margin-top: 10px; border: 1px dashed var(--border-color); }
-        pre { background: var(--bg-deep); padding: 15px; border-radius: 10px; color: var(--success); overflow-x: auto; font-size: 12px; border: 1px solid var(--border-color); margin-top: 15px; max-height: 200px; font-family: monospace; }
+        pre { background: var(--bg-deep); padding: 15px; border-radius: 10px; color: var(--success); overflow-x: auto; font-size: 12px; border: 1px solid var(--border-color); margin-top: 15px; max-height: 150px; font-family: monospace; }
         .btn-row { display: flex; gap: 10px; }
+
+        .tx-feed { margin-top: 12px; max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+        .tx-row { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; font-family: monospace; }
+        .tx-badge { background: rgba(147, 51, 234, 0.2); color: var(--accent-glow); padding: 2px 6px; border-radius: 4px; font-size: 10px; }
     </style>
 </head>
 <body>
@@ -102,7 +106,7 @@
             <!-- WALLET & TOKENS -->
             <div class="card">
                 <h3>🔑 Wallet Portfolio</h3>
-                <p class="desc">Manage your Ed25519 LUN node keys, inspect asset holdings, and view custom deployed tokens.</p>
+                <p class="desc">Manage your Ed25519 LUN node keys and live balance feeds.</p>
                 
                 <div class="btn-row">
                     <button onclick="generateWallet()">New Wallet</button>
@@ -122,14 +126,7 @@
                             <span id="walletAddressShort" style="color:var(--accent-glow);">--</span>
                         </div>
                         <div class="balance-amount" id="nativeBalance">0.00 <span style="font-size:14px; color:var(--text-muted);">LUN</span></div>
-                        
-                        <label style="margin-top:15px;">Token Holdings & SPL Assets:</label>
-                        <div class="token-list" id="tokenHoldingsList">
-                            <div class="token-item">
-                                <span class="token-symbol">NULL-COIN</span>
-                                <span id="holdingNull">0.00</span>
-                            </div>
-                        </div>
+                        <button class="secondary" onclick="refreshBalance()" style="margin-top:5px; padding:6px;">Refresh Balance</button>
                     </div>
                     
                     <div class="address-pill" id="walletDetailsBox"></div>
@@ -140,7 +137,7 @@
             <!-- SEND / TRANSACTION INTERFACE -->
             <div class="card">
                 <h3>💸 Universal Transfer</h3>
-                <p class="desc">Execute cryptographically signed transfers across LUN and EVM address formats.</p>
+                <p class="desc">Execute signed transfers and broadcast instantly to the chain ledger.</p>
                 
                 <label>Sender Address:</label>
                 <input type="text" id="txSender" placeholder="LUN...">
@@ -157,35 +154,21 @@
                 <button onclick="sendTransaction()">Sign & Broadcast Transfer</button>
             </div>
 
-            <!-- SPL TOKEN CREATOR -->
-            <div class="card">
-                <h3>🪙 SPL Token Creator</h3>
-                <p class="desc">Mint custom token programs with dedicated ticker symbols and custom initial supply allocations.</p>
+            <!-- LIVE LEDGER TRANSACTIONS -->
+            <div class="card" style="grid-column: span 2;">
+                <h3>📜 Live Chain Ledger & Transactions</h3>
+                <p class="desc">Real-time inspection of recent blocks and confirmed state transfers across the network.</p>
                 
-                <label>Token Program ID:</label>
-                <input type="text" id="tokenProgramId" value="TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">
-                
-                <label>Token Symbol:</label>
-                <input type="text" id="tokenSymbol" value="LUNM">
-                
-                <label>Initial Total Supply:</label>
-                <input type="number" id="tokenSupply" value="1000000">
-                
-                <button onclick="createSplToken()">Deploy Token Program State</button>
-            </div>
-
-            <!-- NODE TELEMETRY -->
-            <div class="card">
-                <h3>📊 Node Audit Console</h3>
-                <p class="desc">Inspect node health status, ledger block height, and active transaction logs.</p>
-                
-                <div class="btn-row">
-                    <button class="secondary" onclick="checkHealth()">Health</button>
-                    <button class="secondary" onclick="fetchBlockHeight()">Height</button>
-                    <button class="secondary" onclick="fetchRecentTransactions()">Txs</button>
+                <div class="btn-row" style="margin-bottom: 10px;">
+                    <button class="secondary" onclick="fetchRecentTransactions()">Refresh Transactions Feed</button>
+                    <button class="secondary" onclick="checkHealth()">Node Health</button>
                 </div>
-                
-                <pre id="output">Click an audit option above to inspect node state...</pre>
+
+                <div class="tx-feed" id="liveTxFeed">
+                    <div class="tx-row"><span>Loading confirmed ledger transactions...</span></div>
+                </div>
+
+                <pre id="output">System console ready...</pre>
             </div>
         </div>
     </div>
@@ -234,7 +217,6 @@
         };
 
         let currentWallet = null;
-        let userTokens = [];
 
         async function checkHealth() {
             try {
@@ -260,13 +242,14 @@
                     currentWallet = data.wallet;
                     displayWalletInfo(data.wallet, 250.00);
                     document.getElementById('output').innerText = "Wallet generated & funded successfully!";
+                    fetchRecentTransactions();
                 }
             } catch (err) {
                 alert('Wallet generation failed: ' + err.message);
             }
         }
 
-        function restoreWallet() {
+        async function restoreWallet() {
             const pk = document.getElementById('importPrivateKey').value.trim();
             if (!pk) return alert('Please enter a valid base58 private key.');
             try {
@@ -278,10 +261,24 @@
                 const address = 'LUN' + Base58.encode(keypair.publicKey);
                 
                 currentWallet = { address, privateKey: pk };
-                displayWalletInfo(currentWallet, 100.00);
+                await refreshBalance();
+                document.getElementById('walletDetailsBox').innerText = `Address: ${address}\nPrivate Key: ${pk}`;
+                document.getElementById('txSender').value = address;
+                document.getElementById('txPrivateKey').value = pk;
                 document.getElementById('output').innerText = "Wallet restored successfully!";
             } catch (err) {
                 alert('Failed to restore wallet: ' + err.message);
+            }
+        }
+
+        async function refreshBalance() {
+            if (!currentWallet) return;
+            try {
+                const res = await fetch(`/api/getBalance?address=${encodeURIComponent(currentWallet.address)}`);
+                const data = await res.json();
+                displayWalletInfo(currentWallet, data.balance);
+            } catch (err) {
+                console.error('Failed to fetch balance:', err);
             }
         }
 
@@ -305,6 +302,8 @@
                 });
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+                await refreshBalance();
+                fetchRecentTransactions();
             } catch (err) {
                 alert('Faucet error: ' + err.message);
             }
@@ -335,66 +334,41 @@
                 });
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    await refreshBalance();
+                    fetchRecentTransactions();
+                }
             } catch (err) {
                 document.getElementById('output').innerText = 'Transaction Error: ' + err.message;
             }
         }
 
-        async function createSplToken() {
-            const programId = document.getElementById('tokenProgramId').value.trim();
-            const symbol = document.getElementById('tokenSymbol').value.trim();
-            const supply = parseFloat(document.getElementById('tokenSupply').value);
-
-            if (!currentWallet) {
-                alert('Please generate or restore a wallet first.');
-                return;
-            }
-
-            try {
-                const action = 'deployToken';
-                const message = `Invoke ${programId}:${action} Symbol:${symbol} Supply:${supply}`;
-                const secretKeyBytes = Base58.decode(currentWallet.privateKey);
-                const messageBytes = new TextEncoder().encode(message);
-                const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
-                const signature = Base58.encode(signatureBytes);
-
-                const res = await fetch('/api/invokeSmartContract', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ programId, action, symbol, supply, signer: currentWallet.address, signature })
-                });
-                const data = await res.json();
-                document.getElementById('output').innerText = JSON.stringify(data, null, 2);
-
-                userTokens.push({ symbol, supply });
-                updateTokenPortfolio();
-            } catch (err) {
-                document.getElementById('output').innerText = 'Token Deploy Error: ' + err.message;
-            }
-        }
-
-        function updateTokenPortfolio() {
-            const listEl = document.getElementById('tokenHoldingsList');
-            let html = '<div class="token-item"><span class="token-symbol">NULL-COIN</span><span>0.00</span></div>';
-            userTokens.forEach(t => {
-                html += `<div class="token-item"><span class="token-symbol">${t.symbol}</span><span>${t.supply.toLocaleString()}</span></div>`;
-            });
-            listEl.innerHTML = html;
-        }
-
-        async function fetchBlockHeight() {
-            const res = await fetch('/api/getBlockHeight');
-            const data = await res.json();
-            document.getElementById('output').innerText = JSON.stringify(data, null, 2);
-        }
-
         async function fetchRecentTransactions() {
-            const res = await fetch('/api/getRecentTransactions');
-            const data = await res.json();
-            document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+            try {
+                const res = await fetch('/api/getRecentTransactions');
+                const data = await res.json();
+                const feedEl = document.getElementById('liveTxFeed');
+                
+                if (data.success && data.transactions && data.transactions.length > 0) {
+                    let html = '';
+                    data.transactions.forEach(tx => {
+                        html += `<div class="tx-row">
+                            <div><span class="tx-badge">Block #${tx.blockHeight}</span> <b>${tx.amount} LUN</b> from ${tx.sender.slice(0,6)}... to ${tx.recipient.slice(0,6)}...</div>
+                            <div style="color:var(--text-muted); font-size:10px;">${new Date(tx.timestamp).toLocaleTimeString()}</div>
+                        </div>`;
+                    });
+                    feedEl.innerHTML = html;
+                } else {
+                    feedEl.innerHTML = '<div class="tx-row"><span>No confirmed transactions found on chain yet.</span></div>';
+                }
+            } catch (err) {
+                console.error('Failed to load transaction history:', err);
+            }
         }
 
         checkHealth();
+        fetchRecentTransactions();
     </script>
 </body>
 </html>
