@@ -100,7 +100,7 @@ function verifyWeb3Signature(message, signature, expectedAddress) {
   try {
     if (expectedAddress.startsWith('LUN')) {
       const rawPubkeyBase58 = expectedAddress.slice(3);
-      const pubkeyBytes = bs58.decode(rawPubkeyBase58); // Direct bs58 decode for public key bytes
+      const pubkeyBytes = bs58.decode(rawPubkeyBase58);
       const messageBytes = new TextEncoder().encode(message);
       const signatureBytes = bs58.decode(signature);
       return nacl.sign.detached.verify(messageBytes, signatureBytes, pubkeyBytes);
@@ -151,6 +151,16 @@ app.get('/api/getRecentTransactions', (req, res) => {
   }
 });
 
+app.get('/api/getTokens', (req, res) => {
+  const { owner } = req.query;
+  try {
+    const tokens = db.prepare('SELECT mint, symbol, total_supply FROM tokens WHERE owner = ?').all(owner || '');
+    res.status(200).json({ success: true, tokens });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.post('/api/invokeSmartContract', (req, res) => {
   const { programId, action, symbol, supply, signer, signature } = req.body;
   if (!programId || !action || !signer) {
@@ -169,7 +179,7 @@ app.post('/api/invokeSmartContract', (req, res) => {
       db.prepare(`
         INSERT INTO tokens (mint, name, symbol, total_supply, owner)
         VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(mint) DO NOTHING
+        ON CONFLICT(mint) DO UPDATE SET symbol = excluded.symbol, total_supply = excluded.total_supply
       `).run(programId, symbol, symbol, supply, signer);
     }
 
@@ -179,16 +189,10 @@ app.post('/api/invokeSmartContract', (req, res) => {
   }
 });
 
-// --- TRANSACTION ENDPOINT WITH FULL DEBUGGING ---
 app.post('/api/sendTransaction', (req, res) => {
-  console.log('[DEBUG] Incoming /api/sendTransaction payload:', req.body);
-  
-  const { sender, recipient, amount, signature } = req.body;
+  const { sender, recipient, amount, signature, asset } = req.body;
   if (!sender || !recipient || amount === undefined || !signature) {
-    return res.status(400).json({ 
-      error: 'Missing required transaction fields or signature', 
-      received: { sender, recipient, amount, signature } 
-    });
+    return res.status(400).json({ error: 'Missing required transaction fields or signature' });
   }
 
   try {
@@ -196,7 +200,6 @@ app.post('/api/sendTransaction', (req, res) => {
     const messagePayload = `NullNet Transfer: Send ${parsedAmount} to ${recipient}`;
     
     if (!verifyWeb3Signature(messagePayload, signature, sender)) {
-      console.log('[Error] Signature verification failed for payload:', messagePayload);
       return res.status(401).json({ error: 'Cryptographic signature verification failed.' });
     }
 
@@ -206,18 +209,18 @@ app.post('/api/sendTransaction', (req, res) => {
     }
 
     const transferTx = db.transaction(() => {
-      let senderW = db.prepare('SELECT balance FROM wallets WHERE address = ?').get(sender);
-      if (!senderW || senderW.balance < parsedAmount) {
-        throw new Error('Insufficient balance in sender account.');
+      if (!asset || asset === 'LUN') {
+        let senderW = db.prepare('SELECT balance FROM wallets WHERE address = ?').get(sender);
+        if (!senderW || senderW.balance < parsedAmount) {
+          throw new Error('Insufficient LUN balance in sender account.');
+        }
+        let recipientW = db.prepare('SELECT balance FROM wallets WHERE address = ?').get(recipient);
+        if (!recipientW) {
+          db.prepare('INSERT INTO wallets (address, balance) VALUES (?, ?)').run(recipient, 0.0);
+        }
+        db.prepare('UPDATE wallets SET balance = balance - ? WHERE address = ?').run(parsedAmount, sender);
+        db.prepare('UPDATE wallets SET balance = balance + ? WHERE address = ?').run(parsedAmount, recipient);
       }
-
-      let recipientW = db.prepare('SELECT balance FROM wallets WHERE address = ?').get(recipient);
-      if (!recipientW) {
-        db.prepare('INSERT INTO wallets (address, balance) VALUES (?, ?)').run(recipient, 0.0);
-      }
-
-      db.prepare('UPDATE wallets SET balance = balance - ? WHERE address = ?').run(parsedAmount, sender);
-      db.prepare('UPDATE wallets SET balance = balance + ? WHERE address = ?').run(parsedAmount, recipient);
 
       const latestBlock = db.prepare('SELECT * FROM blocks ORDER BY height DESC LIMIT 1').get();
       const newHeight = latestBlock.height + 1;

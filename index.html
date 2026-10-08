@@ -293,6 +293,7 @@
                     currentWallet = data.wallet;
                     displayWalletInfo(data.wallet, 250.00);
                     document.getElementById('output').innerText = "Wallet generated & funded successfully!";
+                    fetchUserTokens();
                     fetchRecentTransactions();
                 }
             } catch (err) {
@@ -313,6 +314,7 @@
                 
                 currentWallet = { address, privateKey: pk };
                 await refreshBalance();
+                await fetchUserTokens();
                 document.getElementById('walletDetailsBox').innerText = `Address: ${address}\nPrivate Key: ${pk}`;
                 document.getElementById('txSender').value = address;
                 document.getElementById('txPrivateKey').value = pk;
@@ -332,6 +334,21 @@
                 displayWalletInfo(currentWallet, data.balance);
             } catch (err) {
                 console.error('Failed to fetch balance:', err);
+            }
+        }
+
+        async function fetchUserTokens() {
+            if (!currentWallet) return;
+            try {
+                const res = await fetch(`/api/getTokens?owner=${encodeURIComponent(currentWallet.address)}`);
+                const data = await res.json();
+                if (data.success && data.tokens) {
+                    userTokens = data.tokens.map(t => ({ symbol: t.symbol, supply: t.total_supply, programId: t.mint }));
+                    updateTokenPortfolio();
+                    updateAssetDropdown();
+                }
+            } catch (err) {
+                console.error('Failed to fetch user tokens:', err);
             }
         }
 
@@ -366,43 +383,43 @@
         }
 
         async function sendTransaction() {
-    const sender = document.getElementById('txSender').value.trim();
-    const recipient = document.getElementById('txRecipient').value.trim();
-    const amount = parseFloat(document.getElementById('txAmount').value);
-    const privateKeyStr = document.getElementById('txPrivateKey').value.trim();
-    const asset = document.getElementById('transferAssetSelect').value;
+            const sender = document.getElementById('txSender').value.trim();
+            const recipient = document.getElementById('txRecipient').value.trim();
+            const amount = parseFloat(document.getElementById('txAmount').value);
+            const privateKeyStr = document.getElementById('txPrivateKey').value.trim();
+            const asset = document.getElementById('transferAssetSelect').value;
 
-    if (!sender || !recipient || isNaN(amount) || !privateKeyStr) {
-        alert('Please fill out all transaction fields correctly.');
-        return;
-    }
+            if (!sender || !recipient || isNaN(amount) || !privateKeyStr) {
+                alert('Please fill out all transaction fields correctly.');
+                return;
+            }
 
-    try {
-        // Matches the exact string format expected by chain.js verifyWeb3Signature
-        const parsedAmount = parseFloat(amount);
-        const messagePayload = `NullNet Transfer: Send ${parsedAmount} to ${recipient}`;
+            try {
+                const parsedAmount = parseFloat(amount);
+                const messagePayload = `NullNet Transfer: Send ${parsedAmount} to ${recipient}`;
 
-        const secretKeyBytes = Base58.decode(privateKeyStr);
-        const messageBytes = new TextEncoder().encode(messagePayload);
-        const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
-        const signature = Base58.encode(signatureBytes);
+                const secretKeyBytes = Base58.decode(privateKeyStr);
+                const messageBytes = new TextEncoder().encode(messagePayload);
+                const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
+                const signature = Base58.encode(signatureBytes);
 
-        const res = await fetch('/api/sendTransaction', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sender, recipient, amount, asset, signature })
-        });
-        const data = await res.json();
-        document.getElementById('output').innerText = JSON.stringify(data, null, 2);
-        
-        if (data.success) {
-            await refreshBalance();
-            fetchRecentTransactions();
+                const res = await fetch('/api/sendTransaction', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sender, recipient, amount, asset, signature })
+                });
+                const data = await res.json();
+                document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    await refreshBalance();
+                    fetchRecentTransactions();
+                }
+            } catch (err) {
+                document.getElementById('output').innerText = 'Transaction Error: ' + err.message;
+            }
         }
-    } catch (err) {
-        document.getElementById('output').innerText = 'Transaction Error: ' + err.message;
-    }
-}
+
         async function createSplToken() {
             const programId = document.getElementById('tokenProgramId').value.trim();
             const symbol = document.getElementById('tokenSymbol').value.trim();
@@ -430,7 +447,7 @@
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
 
                 if (!userTokens.some(t => t.symbol === symbol)) {
-                    userTokens.push({ symbol, supply });
+                    userTokens.push({ symbol, supply, programId });
                 }
                 updateTokenPortfolio();
                 updateAssetDropdown();
