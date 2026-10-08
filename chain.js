@@ -154,7 +154,12 @@ app.get('/api/getRecentTransactions', (req, res) => {
 app.get('/api/getTokens', (req, res) => {
   const { owner } = req.query;
   try {
-    const tokens = db.prepare('SELECT mint, symbol, total_supply FROM tokens WHERE owner = ?').all(owner || '');
+    const tokens = db.prepare(`
+      SELECT t.mint, t.symbol, ta.balance as total_supply
+      FROM token_accounts ta
+      JOIN tokens t ON ta.mint = t.mint
+      WHERE ta.owner = ? AND ta.balance > 0
+    `).all(owner || '');
     res.status(200).json({ success: true, tokens });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -176,11 +181,20 @@ app.post('/api/invokeSmartContract', (req, res) => {
     }
 
     if (action === 'deployToken') {
-      db.prepare(`
-        INSERT INTO tokens (mint, name, symbol, total_supply, owner)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(mint) DO UPDATE SET symbol = excluded.symbol, total_supply = excluded.total_supply, owner = excluded.owner
-      `).run(programId, symbol, symbol, supply, signer);
+      const deployTokenTx = db.transaction(() => {
+        db.prepare(`
+          INSERT INTO tokens (mint, name, symbol, total_supply, owner)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(mint) DO UPDATE SET symbol = excluded.symbol, total_supply = excluded.total_supply, owner = excluded.owner
+        `).run(programId, symbol, symbol, supply, signer);
+
+        db.prepare(`
+          INSERT INTO token_accounts (mint, owner, balance)
+          VALUES (?, ?, ?)
+          ON CONFLICT(mint, owner) DO UPDATE SET balance = excluded.balance
+        `).run(programId, signer, supply);
+      });
+      deployTokenTx();
     }
 
     res.status(200).json({ success: true, message: `Program ${programId} executed action '${action}' successfully.` });
