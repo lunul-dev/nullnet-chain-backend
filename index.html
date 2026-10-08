@@ -325,10 +325,9 @@
 
         function startAutoRefresh() {
             if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-            // Automatically poll balance, tokens, and transaction logs every 5 seconds
             autoRefreshInterval = setInterval(async () => {
                 if (currentWallet) {
-                    await refreshWalletData(false); // silent refresh
+                    await refreshWalletData(false);
                 }
             }, 5000);
         }
@@ -415,7 +414,9 @@
 
             try {
                 const parsedAmount = parseFloat(amount);
-                const messagePayload = `NullNet Transfer: Send ${parsedAmount} to ${recipient}`;
+                // Append random salt to ensure unique transaction signature hash on repeat sends
+                const nonce = Math.random().toString(36.substring(2));
+                const messagePayload = `NullNet Transfer: Send ${parsedAmount} to ${recipient} [${nonce}]`;
 
                 const secretKeyBytes = Base58.decode(privateKeyStr);
                 const messageBytes = new TextEncoder().encode(messagePayload);
@@ -450,7 +451,8 @@
 
             try {
                 const action = 'deployToken';
-                const message = `Invoke ${programId}:${action} Symbol:${symbol} Supply:${supply}`;
+                const nonce = Math.random().toString(36).substring(2);
+                const message = `Invoke ${programId}:${action} Symbol:${symbol} Supply:${supply} [${nonce}]`;
                 const secretKeyBytes = Base58.decode(currentWallet.privateKey);
                 const messageBytes = new TextEncoder().encode(message);
                 const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
@@ -485,11 +487,19 @@
 
         function updateAssetDropdown() {
             const selectEl = document.getElementById('transferAssetSelect');
+            const currentSelected = selectEl.value; // Remember currently selected asset
+            
             let html = `<option value="LUN">LUN (Native) - Balance: ${nativeBalanceVal.toFixed(2)}</option>`;
             userTokens.forEach(t => {
                 html += `<option value="${t.symbol}">${t.symbol} (SPL) - Balance: ${t.supply.toLocaleString()}</option>`;
             });
             selectEl.innerHTML = html;
+            
+            // Restore previous selection if it still exists
+            if ([...selectEl.options].some(opt => opt.value === currentSelected)) {
+                selectEl.value = currentSelected;
+            }
+            
             updateTransferMaxLabel();
         }
 
