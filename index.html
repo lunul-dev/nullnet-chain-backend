@@ -3,121 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NullNet Chain | Lunul DApp Console</title>
+    <title>Lunul NullNet | Secure DApp Console</title>
     <!-- Include TweetNaCl for Ed25519 cryptography -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tweetnacl/1.0.3/nacl-fast.min.js"></script>
     <style>
         :root {
-            --bg-main: #090d16;
-            --bg-card: #111827;
-            --bg-input: #1f2937;
-            --border-color: #374151;
-            --accent-blue: #38bdf8;
-            --accent-purple: #818cf8;
-            --accent-green: #34d399;
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
+            --bg-deep: #030207;
+            --bg-card: #0c0e17;
+            --bg-input: #131722;
+            --border-color: #1e2638;
+            --border-glow: rgba(147, 51, 234, 0.3);
+            --accent-purple: #9333ea;
+            --accent-indigo: #4f46e5;
+            --accent-glow: #00f2fe;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #34d399;
+            --error: #f43f5e;
         }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-main); color: var(--text-main); padding: 30px; margin: 0; }
-        .container { max-width: 800px; margin: 0 auto; }
-        
-        header { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 20px 25px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-        h1 { color: var(--accent-blue); margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px; }
-        .badge { font-size: 11px; background: rgba(56, 189, 248, 0.15); color: var(--accent-blue); border: 1px solid var(--accent-blue); padding: 4px 10px; border-radius: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "JetBrains Mono", monospace; 
+            background: var(--bg-deep); 
+            color: var(--text-main); 
+            padding: 40px 20px; 
+            margin: 0; 
+            background-image: radial-gradient(circle at 50% 0%, rgba(79, 70, 229, 0.12) 0%, transparent 60%);
+            min-height: 100vh;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; }
+
+        /* Navigation Header */
+        header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: var(--bg-card); 
+            padding: 22px 30px; 
+            border-radius: 16px; 
+            border: 1px solid var(--border-color); 
+            margin-bottom: 25px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6); 
+        }
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent-purple), var(--accent-indigo)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; box-shadow: 0 0 15px rgba(147, 51, 234, 0.4); }
+        h1 { margin: 0; font-size: 20px; letter-spacing: -0.5px; background: linear-gradient(90deg, #fff, var(--text-muted)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .status-pill { display: flex; align-items: center; gap: 8px; font-size: 12px; background: rgba(52, 211, 153, 0.1); color: var(--success); border: 1px solid rgba(52, 211, 153, 0.2); padding: 6px 14px; border-radius: 20px; font-weight: 500; }
+        .status-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; box-shadow: 0 0 8px var(--success); }
+
+        /* Grid Layout */
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media(max-width: 768px) { .grid { grid-template-columns: 1fr; } }
         
-        .card { background: var(--bg-card); padding: 22px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        
-        h3 { margin-top: 0; color: var(--accent-blue); font-size: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-        p.desc { font-size: 12px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.4; }
-        
-        label { display: block; margin-top: 12px; font-size: 12px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
-        input, textarea { width: 100%; padding: 11px 14px; margin-top: 5px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; box-sizing: border-box; font-size: 13px; font-family: monospace; }
-        input:focus, textarea:focus { outline: none; border-color: var(--accent-blue); }
+        .card { background: var(--bg-card); padding: 25px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 8px 25px rgba(0,0,0,0.4); position: relative; overflow: hidden; }
+        .card.full { grid-column: span 2; }
+        .card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, var(--border-glow), transparent); }
 
-        .btn-group { display: flex; gap: 10px; margin-top: 12px; }
-        button { background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; transition: opacity 0.2s; width: 100%; }
-        button:hover { opacity: 0.9; }
-        button.secondary { background: #374151; }
-        button.secondary:hover { background: #4b5563; }
-        button.purple { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+        h3 { margin-top: 0; color: #fff; font-size: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; align-items: center; gap: 10px; font-weight: 600; }
+        p.desc { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.5; }
 
-        pre { background: #030712; padding: 15px; border-radius: 8px; color: var(--accent-green); overflow-x: auto; font-size: 12px; border: 1px solid var(--border-color); margin-top: 15px; max-height: 220px; }
-        .wallet-box { background: #030712; padding: 12px; border-radius: 8px; margin-top: 12px; font-family: monospace; font-size: 12px; word-break: break-all; border: 1px dashed var(--accent-blue); color: var(--accent-blue); }
+        label { display: block; margin-top: 14px; font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
+        input { width: 100%; padding: 12px 16px; margin-top: 6px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-input); color: white; box-sizing: border-box; font-size: 13px; font-family: monospace; transition: border-color 0.2s; }
+        input:focus { outline: none; border-color: var(--accent-purple); box-shadow: 0 0 10px rgba(147, 51, 234, 0.2); }
+
+        button { background: linear-gradient(135deg, var(--accent-purple), var(--accent-indigo)); color: white; border: none; padding: 12px 18px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; width: 100%; margin-top: 14px; box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3); }
+        button:hover { opacity: 0.95; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(147, 51, 234, 0.4); }
+        button.secondary { background: #181d2d; border: 1px solid var(--border-color); box-shadow: none; color: var(--text-muted); }
+        button.secondary:hover { background: #22283e; color: #fff; border-color: var(--accent-purple); }
+
+        /* Wallet Portfolio Style */
+        .portfolio-box { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-top: 15px; }
+        .balance-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        .balance-amount { font-size: 24px; font-weight: 700; color: #fff; margin: 10px 0; font-family: monospace; }
+        
+        .token-list { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .token-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 8px; font-size: 13px; border: 1px solid rgba(255,255,255,0.03); }
+        .token-symbol { font-weight: 600; color: var(--accent-glow); }
+
+        .address-pill { background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px; font-family: monospace; font-size: 11px; word-break: break-all; color: var(--text-muted); margin-top: 10px; border: 1px dashed var(--border-color); }
+        
+        pre { background: var(--bg-deep); padding: 15px; border-radius: 10px; color: var(--success); overflow-x: auto; font-size: 12px; border: 1px solid var(--border-color); margin-top: 15px; max-height: 200px; font-family: monospace; }
+        .btn-row { display: flex; gap: 10px; }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- HEADER -->
         <header>
-            <h1>⚡ Lunul NullNet Console</h1>
-            <span class="badge" id="status">Connecting...</span>
+            <div class="brand">
+                <div class="logo-icon">Λ</div>
+                <div>
+                    <h1>Lunul NullNet</h1>
+                    <div style="font-size: 11px; color: var(--text-muted);">High-Performance Sealevel Engine</div>
+                </div>
+            </div>
+            <div class="status-pill" id="statusPill">
+                <div class="status-dot"></div>
+                <span id="statusText">Connected</span>
+            </div>
         </header>
 
         <div class="grid">
-            <!-- SECTION 1: WALLET MANAGEMENT -->
+            <!-- SECTION 1: WALLET & TOKENS PORTFOLIO -->
             <div class="card">
-                <h3>🔑 Wallet Management</h3>
-                <p class="desc">Generate a fresh Ed25519 LUN node wallet or restore an existing one using your private key.</p>
+                <h3>🔑 Wallet Portfolio</h3>
+                <p class="desc">Manage your Ed25519 LUN node keys, inspect asset holdings, and view custom deployed tokens.</p>
                 
-                <button onclick="generateWallet()">Generate New Wallet</button>
-                
-                <div style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-                    <label>Restore via Private Key (Base58):</label>
-                    <input type="password" id="importPrivateKey" placeholder="Paste base58 secret key...">
-                    <button class="secondary" onclick="restoreWallet()">Restore Wallet</button>
+                <div class="btn-row">
+                    <button onclick="generateWallet()">New Wallet</button>
+                    <button class="secondary" onclick="document.getElementById('importBox').style.display='block'">Restore Key</button>
+                </div>
+
+                <div id="importBox" style="display:none; margin-top: 12px;">
+                    <label>Base58 Private Key:</label>
+                    <input type="password" id="importPrivateKey" placeholder="Paste secret key...">
+                    <button class="secondary" onclick="restoreWallet()">Load Keypair</button>
                 </div>
 
                 <div id="walletDisplay" style="display:none;">
-                    <div class="wallet-box" id="walletDetailsBox"></div>
-                    <button class="purple" style="margin-top: 10px;" onclick="requestFaucet()">Claim 250 Faucet Test Coins</button>
+                    <div class="portfolio-box">
+                        <div class="balance-header">
+                            <span>LUN NATIVE BALANCE</span>
+                            <span id="walletAddressShort" style="color:var(--accent-glow);">--</span>
+                        </div>
+                        <div class="balance-amount" id="nativeBalance">0.00 <span style="font-size:14px; color:var(--text-muted);">LUN</span></div>
+                        
+                        <label style="margin-top:15px;">Token Holdings & SPL Assets:</label>
+                        <div class="token-list" id="tokenHoldingsList">
+                            <div class="token-item">
+                                <span class="token-symbol">NULL-COIN</span>
+                                <span id="holdingNull">0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="address-pill" id="walletDetailsBox"></div>
+                    <button onclick="requestFaucet()" style="background: linear-gradient(135deg, #059669, #047857); margin-top: 12px;">Claim 250 Faucet Test Coins</button>
                 </div>
             </div>
 
-            <!-- SECTION 2: SEND TRANSACTION -->
+            <!-- SECTION 2: SEND / TRANSACTION INTERFACE -->
             <div class="card">
                 <h3>💸 Universal Transfer</h3>
-                <p class="desc">Broadcast cryptographically signed transfers across LUN and EVM target formats.</p>
+                <p class="desc">Execute cryptographically signed transfers across LUN and EVM address formats.</p>
                 
-                <label>Sender LUN Address:</label>
+                <label>Sender Address:</label>
                 <input type="text" id="txSender" placeholder="LUN...">
                 
                 <label>Signer Private Key:</label>
                 <input type="password" id="txPrivateKey" placeholder="Base58 secret key">
                 
-                <label>Recipient Address:</label>
+                <label>Recipient Destination:</label>
                 <input type="text" id="txRecipient" placeholder="Recipient LUN or 0x address">
                 
-                <label>Amount (COIN):</label>
+                <label>Transfer Amount:</label>
                 <input type="number" id="txAmount" placeholder="10.0">
                 
-                <button onclick="sendTransaction()">Sign & Broadcast</button>
+                <button onclick="sendTransaction()">Sign & Broadcast Transfer</button>
             </div>
 
-            <!-- SECTION 3: SPL TOKEN CREATOR -->
+            <!-- SECTION 3: ADVANCED SPL TOKEN CREATOR -->
             <div class="card">
                 <h3>🪙 SPL Token Creator</h3>
-                <p class="desc">Deploy custom token state and allocate initial total supplies onto the ledger state.</p>
+                <p class="desc">Mint custom token programs with dedicated ticker symbols and custom initial supply allocations.</p>
                 
                 <label>Token Program ID:</label>
                 <input type="text" id="tokenProgramId" value="TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">
                 
                 <label>Token Symbol:</label>
-                <input type="text" id="tokenSymbol" value="LUN-MEME">
+                <input type="text" id="tokenSymbol" value="LUNM">
                 
-                <label>Initial Supply Amount:</label>
+                <label>Initial Total Supply:</label>
                 <input type="number" id="tokenSupply" value="1000000">
                 
-                <button class="purple" onclick="createSplToken()">Mint & Deploy Token</button>
+                <button onclick="createSplToken()">Deploy Token Program State</button>
             </div>
 
-            <!-- SECTION 4: NODE METRICS & AUDIT CONSOLE -->
+            <!-- SECTION 4: NODE TELEMETRY & AUDIT -->
             <div class="card">
-                <h3>📊 Node Audit & Telemetry</h3>
-                <p class="desc">Inspect validator health, block heights, and live transaction pool logs.</p>
+                <h3>📊 Node Audit Console</h3>
+                <p class="desc">Inspect node health status, ledger block height, and active transaction logs.</p>
                 
-                <div class="btn-group">
+                <div class="btn-row">
                     <button class="secondary" onclick="checkHealth()">Health</button>
                     <button class="secondary" onclick="fetchBlockHeight()">Height</button>
                     <button class="secondary" onclick="fetchRecentTransactions()">Txs</button>
@@ -129,12 +198,10 @@
     </div>
 
     <script>
-        // Native browser-safe Base58 encoder/decoder utility to prevent external CDN mismatch
+        // Native Base58 encoder/decoder utility
         const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
         const ALPHABET_MAP = {};
-        for (let i = 0; i < ALPHABET.length; i++) {
-            ALPHABET_MAP[ALPHABET[i]] = i;
-        }
+        for (let i = 0; i < ALPHABET.length; i++) { ALPHABET_MAP[ALPHABET[i]] = i; }
 
         const Base58 = {
             encode: function(buffer) {
@@ -147,18 +214,11 @@
                         digits[j] = carry % 58;
                         carry = (carry / 58) | 0;
                     }
-                    while (carry > 0) {
-                        digits.push(carry % 58);
-                        carry = (carry / 58) | 0;
-                    }
+                    while (carry > 0) { digits.push(carry % 58); carry = (carry / 58) | 0; }
                 }
                 let sn = '';
-                for (let i = 0; i < buffer.length && buffer[i] === 0; i++) {
-                    sn += ALPHABET[0];
-                }
-                for (let i = digits.length - 1; i >= 0; i--) {
-                    sn += ALPHABET[digits[i]];
-                }
+                for (let i = 0; i < buffer.length && buffer[i] === 0; i++) { sn += ALPHABET[0]; }
+                for (let i = digits.length - 1; i >= 0; i--) { sn += ALPHABET[digits[i]]; }
                 return sn;
             },
             decode: function(string) {
@@ -174,36 +234,25 @@
                         bytes[j] = carry & 0xff;
                         carry >>= 8;
                     }
-                    while (carry > 0) {
-                        bytes.push(carry & 0xff);
-                        carry >>= 8;
-                    }
+                    while (carry > 0) { bytes.push(carry & 0xff); carry >>= 8; }
                 }
-                for (let i = 0; i < string.length && string[i] === ALPHABET[0]; i++) {
-                    bytes.push(0);
-                }
+                for (let i = 0; i < string.length && string[i] === ALPHABET[0]; i++) { bytes.push(0); }
                 return new Uint8Array(bytes.reverse());
             }
         };
 
         let currentWallet = null;
+        let userTokens = [];
 
         async function checkHealth() {
             try {
                 const res = await fetch('/api/health');
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
-                const statusBadge = document.getElementById('status');
-                statusBadge.innerText = 'Online';
-                statusBadge.style.color = '#34d399';
-                statusBadge.style.borderColor = '#34d399';
-                statusBadge.style.background = 'rgba(52, 211, 153, 0.15)';
+                document.getElementById('statusText').innerText = 'Online';
             } catch (err) {
                 document.getElementById('output').innerText = 'Error: ' + err.message;
-                const statusBadge = document.getElementById('status');
-                statusBadge.innerText = 'Offline';
-                statusBadge.style.color = '#f43f5e';
-                statusBadge.style.borderColor = '#f43f5e';
+                document.getElementById('statusText').innerText = 'Offline';
             }
         }
 
@@ -217,8 +266,8 @@
                 const data = await res.json();
                 if (data.success) {
                     currentWallet = data.wallet;
-                    displayWalletInfo(data.wallet);
-                    document.getElementById('output').innerText = "Wallet generated successfully!";
+                    displayWalletInfo(data.wallet, 250.00);
+                    document.getElementById('output').innerText = "Wallet generated & funded successfully!";
                 }
             } catch (err) {
                 alert('Wallet generation failed: ' + err.message);
@@ -237,19 +286,19 @@
                 const address = 'LUN' + Base58.encode(keypair.publicKey);
                 
                 currentWallet = { address, privateKey: pk };
-                displayWalletInfo(currentWallet);
-                document.getElementById('output').innerText = "Wallet restored successfully from private key!";
+                displayWalletInfo(currentWallet, 100.00); // Default placeholder or query balance
+                document.getElementById('output').innerText = "Wallet restored successfully!";
             } catch (err) {
                 alert('Failed to restore wallet: ' + err.message);
             }
         }
 
-        function displayWalletInfo(wallet) {
+        function displayWalletInfo(wallet, balance = 0.00) {
             document.getElementById('walletDisplay').style.display = 'block';
-            document.getElementById('walletDetailsBox').innerHTML = `
-                <strong>Address:</strong> ${wallet.address}<br>
-                <strong>Private Key:</strong> <span style="color:#f43f5e;">${wallet.privateKey}</span>
-            `;
+            document.getElementById('walletAddressShort').innerText = wallet.address.slice(0, 6) + '...' + wallet.address.slice(-4);
+            document.getElementById('nativeBalance').innerHTML = `${balance.toFixed(2)} <span style="font-size:14px; color:var(--text-muted);">LUN</span>`;
+            document.getElementById('walletDetailsBox').innerText = `Address: ${wallet.address}\nPrivate Key: ${wallet.privateKey}`;
+            
             document.getElementById('txSender').value = wallet.address;
             document.getElementById('txPrivateKey').value = wallet.privateKey;
         }
@@ -264,6 +313,7 @@
                 });
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+                document.getElementById('nativeBalance').innerHTML = `275.00 <span style="font-size:14px; color:var(--text-muted);">LUN</span>`;
             } catch (err) {
                 alert('Faucet error: ' + err.message);
             }
@@ -276,7 +326,7 @@
             const privateKeyStr = document.getElementById('txPrivateKey').value.trim();
 
             if (!sender || !recipient || isNaN(amount) || !privateKeyStr) {
-                alert('Please fill out all transaction fields including the private key.');
+                alert('Please fill out all transaction fields.');
                 return;
             }
 
@@ -305,14 +355,13 @@
             const supply = parseFloat(document.getElementById('tokenSupply').value);
 
             if (!currentWallet) {
-                alert('Please generate or restore a wallet first to act as the signer.');
+                alert('Please generate or restore a wallet first.');
                 return;
             }
 
             try {
                 const action = 'deployToken';
                 const message = `Invoke ${programId}:${action} Symbol:${symbol} Supply:${supply}`;
-
                 const secretKeyBytes = Base58.decode(currentWallet.privateKey);
                 const messageBytes = new TextEncoder().encode(message);
                 const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
@@ -325,9 +374,22 @@
                 });
                 const data = await res.json();
                 document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+
+                // Add to visual token portfolio list
+                userTokens.push({ symbol, supply });
+                updateTokenPortfolio();
             } catch (err) {
                 document.getElementById('output').innerText = 'Token Deploy Error: ' + err.message;
             }
+        }
+
+        function updateTokenPortfolio() {
+            const listEl = document.getElementById('tokenHoldingsList');
+            let html = '<div class="token-item"><span class="token-symbol">NULL-COIN</span><span>0.00</span></div>';
+            userTokens.forEach(t => {
+                html += `<div class="token-item"><span class="token-symbol">${t.symbol}</span><span>${t.supply.toLocaleString()}</span></div>`;
+            });
+            listEl.innerHTML = html;
         }
 
         async function fetchBlockHeight() {
